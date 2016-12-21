@@ -1,0 +1,43 @@
+plugins {
+    id "com.google.protobuf" version "0.8.0"
+}
+
+description = "gRPC: ReactiveX"
+
+dependencies {
+  compile "io.grpc:grpc-netty:${grpcJavaVersion}",
+    "io.grpc:grpc-protobuf:${grpcJavaVersion}",
+    "io.grpc:grpc-stub:${grpcJavaVersion}",
+    'io.reactivex.rxjava2:rxjava:2.0.1'
+
+  testCompile 'junit:junit:4.12'
+}
+
+protobuf {
+  generatedFilesBaseDir = "$projectDir/gen"
+  protoc {
+    // The version of protoc must match protobuf-java. If you don't depend on
+    // protobuf-java directly, you will be transitively depending on the
+    // protobuf-java version that grpc depends on.
+    artifact = "com.google.protobuf:protoc:3.1.0"
+  }
+  plugins {
+    grpc {
+      artifact = "io.grpc:protoc-gen-grpc-java:${grpcJavaVersion}"
+    }
+  }
+  generateProtoTasks {
+    all()*.plugins {
+      grpc {}
+    }
+  }
+}
+
+sourceSets {
+  test {
+    java {
+      srcDir "${protobuf.generatedFilesBaseDir}/test/java"
+      srcDir "${protobuf.generatedFilesBaseDir}/test/grpc"
+    }
+  }
+}

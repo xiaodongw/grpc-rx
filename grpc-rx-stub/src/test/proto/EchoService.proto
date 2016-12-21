@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package io.grpc.rx;
+
+message EchoReq {
+ string value = 1;
+}
+
+message EchoCountReq {
+ string value = 1;
+ int32 count = 2;
+}
+
+message EchoResp {
+ string value = 1;
+}
+
+message EchoCountResp {
+ string value = 1;
+ int32 count = 2;
+}
+
+service Echo {
+    rpc unary(EchoReq) returns (EchoResp);
+    rpc serverStreaming(EchoCountReq) returns (stream EchoResp);
+    rpc clientStreaming(stream EchoReq) returns (EchoCountResp);
+    rpc bidiStreaming(stream EchoReq) returns (stream EchoResp);
+}

@@ -1,0 +1,30 @@
+buildscript {
+  repositories {
+    mavenCentral()
+    mavenLocal()
+  }
+  dependencies {
+    classpath 'com.google.gradle:osdetector-gradle-plugin:1.4.0'
+  }
+}
+
+subprojects {
+  apply plugin: "java"
+
+  group = "io.grpc"
+
+
+  ext {
+    grpcJavaVersion = '1.0.1'
+    protobufVersion = '3.1.0'
+
+    libs = [
+      //scalaLibrary: "org.scala-lang:scala-library:${scalaVersion}"
+    ]
+  }
+
+  repositories {
+    mavenCentral()
+    mavenLocal()
+  }
+}
