@@ -15,8 +15,9 @@ subprojects {
 
 
   ext {
-    grpcJavaVersion = '1.0.1'
+    grpcJavaVersion = '1.0.3'
     protobufVersion = '3.1.0'
+    rxJavaVersion = '2.0.3'
 
     libs = [
       //scalaLibrary: "org.scala-lang:scala-library:${scalaVersion}"

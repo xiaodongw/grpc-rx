@@ -8,7 +8,7 @@ dependencies {
   compile "io.grpc:grpc-netty:${grpcJavaVersion}",
     "io.grpc:grpc-protobuf:${grpcJavaVersion}",
     "io.grpc:grpc-stub:${grpcJavaVersion}",
-    'io.reactivex.rxjava2:rxjava:2.0.1'
+    "io.reactivex.rxjava2:rxjava:${rxJavaVersion}"
 
   testCompile 'junit:junit:4.12'
 }
