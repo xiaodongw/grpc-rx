@@ -236,7 +236,7 @@ public final class ClientCallsRx {
 		private int lowWatermark = 4;
 		private int highWatermark = 8;
 
-		private Subscription subscription;
+		private volatile Subscription subscription;
 		private final AtomicInteger pendingRequest = new AtomicInteger();
 
 		public StreamRequestAdapter(ClientCall<ReqT, ?> call) {
@@ -271,6 +271,8 @@ public final class ClientCallsRx {
 		}
 
 		private void pullRequests() {
+			if(subscription == null) return;
+
 			int pending = pendingRequest.get();
 			if (pending <= lowWatermark) {
 				int desired = highWatermark - pending;
