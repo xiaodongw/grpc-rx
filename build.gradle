@@ -9,12 +9,23 @@ buildscript {
 }
 
 subprojects {
+  apply plugin: "checkstyle"
   apply plugin: "java"
+  apply plugin: "maven"
+  //apply plugin: "idea"
+  apply plugin: "signing"
+  apply plugin: "jacoco"
+
+  apply plugin: "com.google.osdetector"
 
   group = "io.grpc"
 
 
   ext {
+    def exeSuffix = osdetector.os == 'windows' ? ".exe" : ""
+    protocPluginBaseName = 'protoc-gen-grpc-rxjava'
+    rxjavaPluginPath = "$rootDir/compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
+
     grpcJavaVersion = '1.0.3'
     protobufVersion = '3.1.0'
     rxJavaVersion = '2.0.3'
