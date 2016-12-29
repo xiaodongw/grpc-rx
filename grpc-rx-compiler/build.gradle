@@ -127,33 +127,8 @@ dependencies {
 //                  project(':grpc-stub')
 }
 
-sourceSets {
-  testLite {
-    proto {
-      setSrcDirs(['src/test/proto'])
-    }
-  }
-  testNano {
-    proto {
-      setSrcDirs(['src/test/proto'])
-    }
-  }
-}
-
-compileTestJava {
-  options.compilerArgs += ["-Xlint:-cast"]
-}
-
-compileTestLiteJava {
-  // Protobuf-generated Lite produces quite a few warnings.
-  options.compilerArgs += ["-Xlint:-rawtypes", "-Xlint:-unchecked"]
-}
-
-compileTestNanoJava {
-  options.compilerArgs = compileTestJava.options.compilerArgs
-}
-
 protobuf {
+  generatedFilesBaseDir = "$projectDir/gen"
   protoc {
     if (project.hasProperty('protoc')) {
       path = project.protoc
@@ -206,6 +181,39 @@ protobuf {
       }
     }
   }
+}
+
+sourceSets {
+  test {
+    java {
+      srcDir "${protobuf.generatedFilesBaseDir}/test/java"
+      srcDir "${protobuf.generatedFilesBaseDir}/test/grpc"
+    }
+  }
+
+  testLite {
+    proto {
+      setSrcDirs(['src/test/proto'])
+    }
+  }
+  testNano {
+    proto {
+      setSrcDirs(['src/test/proto'])
+    }
+  }
+}
+
+compileTestJava {
+  options.compilerArgs += ["-Xlint:-cast"]
+}
+
+compileTestLiteJava {
+  // Protobuf-generated Lite produces quite a few warnings.
+  options.compilerArgs += ["-Xlint:-rawtypes", "-Xlint:-unchecked"]
+}
+
+compileTestNanoJava {
+  options.compilerArgs = compileTestJava.options.compilerArgs
 }
 
 //checkstyleTestNano {

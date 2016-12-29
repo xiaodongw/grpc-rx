@@ -19,11 +19,12 @@ protobuf {
     // The version of protoc must match protobuf-java. If you don't depend on
     // protobuf-java directly, you will be transitively depending on the
     // protobuf-java version that grpc depends on.
-    artifact = "com.google.protobuf:protoc:3.1.0"
+    artifact = "com.google.protobuf:protoc:${protobufVersion}"
   }
   plugins {
     grpc {
-      artifact = "io.grpc:protoc-gen-grpc-rxjava:${grpcJavaVersion}"
+      //artifact = "io.grpc:protoc-gen-grpc-rxjava:${grpcJavaVersion}"
+      path = rxjavaPluginPath
     }
   }
   generateProtoTasks {

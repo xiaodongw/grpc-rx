@@ -14,3 +14,5 @@ hs_err_pid*
 .gradle/
 .idea/
 build/
+cmake-build-debug/
+gen/

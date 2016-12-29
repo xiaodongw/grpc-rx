@@ -22,7 +22,7 @@
 #define FALLTHROUGH_INTENDED
 #endif
 
-namespace java_grpc_generator {
+namespace rxjava_grpc_generator {
 
 using google::protobuf::FileDescriptor;
 using google::protobuf::ServiceDescriptor;
@@ -297,6 +297,31 @@ void GrpcWriteMethodDocComment(Printer* printer,
   printer->Print(" */\n");
 }
 
+enum MethodType {
+  UNARY = 0,
+  SERVER_STREAMING = 1,
+  CLIENT_STREAMING = 2,
+  BIDI_STREAMING = 3
+};
+
+static inline MethodType GetMethodType(const MethodDescriptor* method) {
+  bool client_streaming = method->client_streaming();
+  bool server_streaming = method->server_streaming();
+  if (client_streaming) {
+    if (server_streaming) {
+      return MethodType::BIDI_STREAMING;
+    } else {
+      return MethodType::CLIENT_STREAMING;
+    }
+  } else {
+    if (server_streaming) {
+      return MethodType::SERVER_STREAMING;
+    } else {
+      return MethodType::UNARY;
+    }
+  }
+}
+
 static void PrintMethodFields(
     const ServiceDescriptor* service, map<string, string>* vars, Printer* p,
     ProtoFlavor flavor) {
@@ -416,19 +441,19 @@ static void PrintMethodFields(
 
 enum StubType {
   ASYNC_INTERFACE = 0,
-  BLOCKING_CLIENT_INTERFACE = 1,
-  FUTURE_CLIENT_INTERFACE = 2,
+  //BLOCKING_CLIENT_INTERFACE = 1,
+  //FUTURE_CLIENT_INTERFACE = 2,
   BLOCKING_SERVER_INTERFACE = 3,
   ASYNC_CLIENT_IMPL = 4,
-  BLOCKING_CLIENT_IMPL = 5,
-  FUTURE_CLIENT_IMPL = 6,
+  //BLOCKING_CLIENT_IMPL = 5,
+  //FUTURE_CLIENT_IMPL = 6,
   ABSTRACT_CLASS = 7,
 };
 
 enum CallType {
   ASYNC_CALL = 0,
-  BLOCKING_CALL = 1,
-  FUTURE_CALL = 2
+  //BLOCKING_CALL = 1,
+  //FUTURE_CALL = 2
 };
 
 static void PrintBindServiceMethodBody(const ServiceDescriptor* service,
@@ -489,22 +514,6 @@ static void PrintStub(
     case ASYNC_CLIENT_IMPL:
       call_type = ASYNC_CALL;
       stub_name += "Stub";
-      break;
-    case BLOCKING_CLIENT_INTERFACE:
-      interface = true;
-      FALLTHROUGH_INTENDED;
-    case BLOCKING_CLIENT_IMPL:
-      call_type = BLOCKING_CALL;
-      stub_name += "BlockingStub";
-      client_name += "BlockingClient";
-      break;
-    case FUTURE_CLIENT_INTERFACE:
-      interface = true;
-      FALLTHROUGH_INTENDED;
-    case FUTURE_CLIENT_IMPL:
-      call_type = FUTURE_CALL;
-      stub_name += "FutureStub";
-      client_name += "FutureClient";
       break;
     case ASYNC_INTERFACE:
       call_type = ASYNC_CALL;
@@ -593,16 +602,7 @@ static void PrintStub(
     (*vars)["method_field_name"] = MethodPropertiesFieldName(method);
     bool client_streaming = method->client_streaming();
     bool server_streaming = method->server_streaming();
-
-    if (call_type == BLOCKING_CALL && client_streaming) {
-      // Blocking client interface with client streaming is not available
-      continue;
-    }
-
-    if (call_type == FUTURE_CALL && (client_streaming || server_streaming)) {
-      // Future interface doesn't support streaming.
-      continue;
-    }
+    MethodType method_type = GetMethodType(method);
 
     // Method signature
     p->Print("\n");
@@ -617,46 +617,33 @@ static void PrintStub(
     }
     p->Print("public ");
     switch (call_type) {
-      case BLOCKING_CALL:
-        GRPC_CODEGEN_CHECK(!client_streaming)
-            << "Blocking client interface with client streaming is unavailable";
-        if (server_streaming) {
-          // Server streaming
-          p->Print(
-              *vars,
-              "$Iterator$<$output_type$> $lower_method_name$(\n"
-              "    $input_type$ request)");
-        } else {
-          // Simple RPC
-          p->Print(
-              *vars,
-              "$output_type$ $lower_method_name$($input_type$ request)");
-        }
-        break;
       case ASYNC_CALL:
-        if (client_streaming) {
-          // Bidirectional streaming or client streaming
-          p->Print(
-              *vars,
-              "$StreamObserver$<$input_type$> $lower_method_name$(\n"
-              "    $StreamObserver$<$output_type$> responseObserver)");
-        } else {
-          // Server streaming or simple RPC
-          p->Print(
-              *vars,
-              "void $lower_method_name$($input_type$ request,\n"
-              "    $StreamObserver$<$output_type$> responseObserver)");
+        switch (method_type) {
+          case MethodType::UNARY:
+            p->Print(
+                *vars,
+                "void $lower_method_name$($input_type$ request,\n"
+                "    $SingleObserver$<$output_type$> responseObserver)");
+            break;
+          case MethodType::SERVER_STREAMING:
+            p->Print(
+                *vars,
+                "void $lower_method_name$($input_type$ request,\n"
+                "    $Subscriber$<$output_type$> responseSubscriber)");
+            break;
+          case MethodType::CLIENT_STREAMING:
+            p->Print(
+                *vars,
+                "$Subscriber$<$input_type$> $lower_method_name$(\n"
+                "    $SingleObserver$<$output_type$> responseObserver)");
+            break;
+          case MethodType::BIDI_STREAMING:
+            p->Print(
+                *vars,
+                "$Subscriber$<$input_type$> $lower_method_name$(\n"
+                "    $Subscriber$<$output_type$> responseSubscriber)");
+            break;
         }
-        break;
-      case FUTURE_CALL:
-        GRPC_CODEGEN_CHECK(!client_streaming && !server_streaming)
-            << "Future interface doesn't support streaming. "
-            << "client_streaming=" << client_streaming << ", "
-            << "server_streaming=" << server_streaming;
-        p->Print(
-            *vars,
-            "$ListenableFuture$<$output_type$> $lower_method_name$(\n"
-            "    $input_type$ request)");
         break;
     }
 
@@ -672,14 +659,32 @@ static void PrintStub(
         // NB: Skipping validation of service methods. If something is wrong, we wouldn't get to
         // this point as compiler would return errors when generating service interface.
         case ASYNC_CALL:
+          switch(method_type) {
+            case MethodType::UNARY:
+              p->Print(
+                  *vars,
+                  "unimplementedUnaryCall($method_field_name$, responseObserver);\n");
+              break;
+            case MethodType::SERVER_STREAMING:
+              p->Print(
+                  *vars,
+                  "unimplementedServerStreamingCall($method_field_name$, responseSubscriber);\n");
+              break;
+            case MethodType::CLIENT_STREAMING:
+              p->Print(
+                  *vars,
+                  "return unimplementedClientStreamingCall($method_field_name$, responseObserver);\n");
+              break;
+            case MethodType::BIDI_STREAMING:
+              p->Print(
+                  *vars,
+                  "return unimplementedBidiStreamingCall($method_field_name$, responseSubscriber);\n");
+              break;
+          }
           if (client_streaming) {
-            p->Print(
-                *vars,
-                "return asyncUnimplementedStreamingCall($method_field_name$, responseObserver);\n");
+
           } else {
-            p->Print(
-                *vars,
-                "asyncUnimplementedUnaryCall($method_field_name$, responseObserver);\n");
+
           }
           break;
         default:
@@ -687,55 +692,30 @@ static void PrintStub(
       }
     } else if (!interface) {
       switch (call_type) {
-        case BLOCKING_CALL:
-          GRPC_CODEGEN_CHECK(!client_streaming)
-              << "Blocking client streaming interface is not available";
-          if (server_streaming) {
-            (*vars)["calls_method"] = "blockingServerStreamingCall";
-            (*vars)["params"] = "request";
-          } else {
-            (*vars)["calls_method"] = "blockingUnaryCall";
-            (*vars)["params"] = "request";
-          }
-          p->Print(
-              *vars,
-              "return $calls_method$(\n"
-              "    getChannel(), $method_field_name$, getCallOptions(), $params$);\n");
-          break;
         case ASYNC_CALL:
-          if (server_streaming) {
-            if (client_streaming) {
-              (*vars)["calls_method"] = "asyncBidiStreamingCall";
-              (*vars)["params"] = "responseObserver";
-            } else {
-              (*vars)["calls_method"] = "asyncServerStreamingCall";
+          switch(method_type) {
+            case MethodType::UNARY:
+              (*vars)["calls_method"] = "rxUnaryCall";
               (*vars)["params"] = "request, responseObserver";
-            }
-          } else {
-            if (client_streaming) {
-              (*vars)["calls_method"] = "asyncClientStreamingCall";
+              break;
+            case MethodType::SERVER_STREAMING:
+              (*vars)["calls_method"] = "rxServerStreamingCall";
+              (*vars)["params"] = "request, responseSubscriber";
+              break;
+            case MethodType::CLIENT_STREAMING:
+              (*vars)["calls_method"] = "rxClientStreamingCall";
               (*vars)["params"] = "responseObserver";
-            } else {
-              (*vars)["calls_method"] = "asyncUnaryCall";
-              (*vars)["params"] = "request, responseObserver";
-            }
+              break;
+            case MethodType::BIDI_STREAMING:
+              (*vars)["calls_method"] = "rxBidiStreamingCall";
+              (*vars)["params"] = "responseSubscriber";
+              break;
           }
           (*vars)["last_line_prefix"] = client_streaming ? "return " : "";
           p->Print(
               *vars,
               "$last_line_prefix$$calls_method$(\n"
               "    getChannel().newCall($method_field_name$, getCallOptions()), $params$);\n");
-          break;
-        case FUTURE_CALL:
-          GRPC_CODEGEN_CHECK(!client_streaming && !server_streaming)
-              << "Future interface doesn't support streaming. "
-              << "client_streaming=" << client_streaming << ", "
-              << "server_streaming=" << server_streaming;
-          (*vars)["calls_method"] = "futureUnaryCall";
-          p->Print(
-              *vars,
-              "return $calls_method$(\n"
-              "    getChannel().newCall($method_field_name$, getCallOptions()), request);\n");
           break;
       }
     }
@@ -761,6 +741,40 @@ static bool CompareMethodClientStreaming(const MethodDescriptor* method1,
                                          const MethodDescriptor* method2)
 {
   return method1->client_streaming() < method2->client_streaming();
+}
+
+static void PrintInvokeMethod(const ServiceDescriptor* service,
+                              map<string, string>* vars,
+                              Printer* p,
+                              bool generate_nano,
+                              MethodType method_type_filter,
+                              const char* method_template,
+                              const char* case_template) {
+  p->Print(*vars, method_template);
+  p->Indent();
+  p->Indent();
+
+  for (int i = 0; i < service->method_count(); ++i) {
+    const MethodDescriptor* method = service->method(i);
+    MethodType method_type = GetMethodType(method);
+    if (method_type != method_type_filter) {
+      continue;
+    }
+    (*vars)["method_id_name"] = MethodIdFieldName(method);
+    (*vars)["lower_method_name"] = LowerMethodName(method);
+    (*vars)["input_type"] = MessageFullJavaName(generate_nano,
+                                                method->input_type());
+    (*vars)["output_type"] = MessageFullJavaName(generate_nano,
+                                                 method->output_type());
+    p->Print(*vars, case_template);
+  }
+  p->Print("default:\n"
+               "  throw new AssertionError();\n");
+
+  p->Outdent();
+  p->Outdent();
+  p->Print("  }\n"
+               "}\n\n");
 }
 
 // Place all method invocations into a single class to reduce memory footprint
@@ -794,10 +808,10 @@ static void PrintMethodHandlerClass(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "private static class MethodHandlers<Req, Resp> implements\n"
-      "    io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,\n"
-      "    io.grpc.stub.ServerCalls.ServerStreamingMethod<Req, Resp>,\n"
-      "    io.grpc.stub.ServerCalls.ClientStreamingMethod<Req, Resp>,\n"
-      "    io.grpc.stub.ServerCalls.BidiStreamingMethod<Req, Resp> {\n"
+      "    io.grpc.rx.stub.ServerCallsRx.UnaryMethod<Req, Resp>,\n"
+      "    io.grpc.rx.stub.ServerCallsRx.ServerStreamingMethod<Req, Resp>,\n"
+      "    io.grpc.rx.stub.ServerCallsRx.ClientStreamingMethod<Req, Resp>,\n"
+      "    io.grpc.rx.stub.ServerCallsRx.BidiStreamingMethod<Req, Resp> {\n"
       "  private final $service_name$ serviceImpl;\n"
       "  private final int methodId;\n"
       "\n"
@@ -806,75 +820,46 @@ static void PrintMethodHandlerClass(const ServiceDescriptor* service,
       "    this.methodId = methodId;\n"
       "  }\n\n");
   p->Indent();
-  p->Print(
-      *vars,
-      "@$Override$\n"
-      "@java.lang.SuppressWarnings(\"unchecked\")\n"
-      "public void invoke(Req request, $StreamObserver$<Resp> responseObserver) {\n"
-      "  switch (methodId) {\n");
-  p->Indent();
-  p->Indent();
 
-  for (int i = 0; i < service->method_count(); ++i) {
-    const MethodDescriptor* method = service->method(i);
-    if (method->client_streaming()) {
-      continue;
-    }
-    (*vars)["method_id_name"] = MethodIdFieldName(method);
-    (*vars)["lower_method_name"] = LowerMethodName(method);
-    (*vars)["input_type"] = MessageFullJavaName(generate_nano,
-                                                method->input_type());
-    (*vars)["output_type"] = MessageFullJavaName(generate_nano,
-                                                 method->output_type());
-    p->Print(
-        *vars,
-        "case $method_id_name$:\n"
-        "  serviceImpl.$lower_method_name$(($input_type$) request,\n"
-        "      ($StreamObserver$<$output_type$>) responseObserver);\n"
-        "  break;\n");
-  }
-  p->Print("default:\n"
-           "  throw new AssertionError();\n");
+  // print unary invoke
+  PrintInvokeMethod(service, vars, p, generate_nano, MethodType::UNARY,
+                    "@$Override$\n"
+                    "@java.lang.SuppressWarnings(\"unchecked\")\n"
+                    "public void invoke(Req request, $SingleObserver$<Resp> responseObserver) {\n"
+                    "  switch (methodId) {\n",
+                    "case $method_id_name$:\n"
+                    "  serviceImpl.$lower_method_name$(($input_type$) request,\n"
+                    "      ($SingleObserver$<$output_type$>) responseObserver);\n"
+                    "  break;\n");
 
-  p->Outdent();
-  p->Outdent();
-  p->Print("  }\n"
-           "}\n\n");
+  // print server_stream invoke
+  PrintInvokeMethod(service, vars, p, generate_nano, MethodType::SERVER_STREAMING,
+                    "@$Override$\n"
+                    "@java.lang.SuppressWarnings(\"unchecked\")\n"
+                    "public void invoke(Req request, $Subscriber$<Resp> responseSubscriber) {\n"
+                    "  switch (methodId) {\n",
+                    "case $method_id_name$:\n"
+                    "  serviceImpl.$lower_method_name$(($input_type$) request,\n"
+                    "      ($Subscriber$<$output_type$>) responseSubscriber);\n"
+                    "  break;\n");
 
-  p->Print(
-      *vars,
-      "@$Override$\n"
-      "@java.lang.SuppressWarnings(\"unchecked\")\n"
-      "public $StreamObserver$<Req> invoke(\n"
-      "    $StreamObserver$<Resp> responseObserver) {\n"
-      "  switch (methodId) {\n");
-  p->Indent();
-  p->Indent();
+  // print client_stream invoke
+  PrintInvokeMethod(service, vars, p, generate_nano, MethodType::CLIENT_STREAMING,
+                    "@$Override$\n"
+                    "@java.lang.SuppressWarnings(\"unchecked\")\n"
+                    "public $Subscriber$<Req> invoke($SingleObserver$<Resp> responseObserver) {\n"
+                    "  switch (methodId) {\n",
+                    "case $method_id_name$:\n"
+                    "  return ($Subscriber$<Req>) serviceImpl.$lower_method_name$(($SingleObserver$<$output_type$>) responseObserver);\n");
 
-  for (int i = 0; i < service->method_count(); ++i) {
-    const MethodDescriptor* method = service->method(i);
-    if (!method->client_streaming()) {
-      continue;
-    }
-    (*vars)["method_id_name"] = MethodIdFieldName(method);
-    (*vars)["lower_method_name"] = LowerMethodName(method);
-    (*vars)["input_type"] = MessageFullJavaName(generate_nano,
-                                                method->input_type());
-    (*vars)["output_type"] = MessageFullJavaName(generate_nano,
-                                                 method->output_type());
-    p->Print(
-        *vars,
-        "case $method_id_name$:\n"
-        "  return ($StreamObserver$<Req>) serviceImpl.$lower_method_name$(\n"
-        "      ($StreamObserver$<$output_type$>) responseObserver);\n");
-  }
-  p->Print("default:\n"
-           "  throw new AssertionError();\n");
-
-  p->Outdent();
-  p->Outdent();
-  p->Print("  }\n"
-           "}\n");
+  // print bidi_stream invoke
+  PrintInvokeMethod(service, vars, p, generate_nano, MethodType::BIDI_STREAMING,
+                    "@$Override$\n"
+                    "@java.lang.SuppressWarnings(\"unchecked\")\n"
+                    "public $Subscriber$<Req> invoke($Subscriber$<Resp> responseSubscriber) {\n"
+                    "  switch (methodId) {\n",
+                    "case $method_id_name$:\n"
+                    "  return ($Subscriber$<Req>) serviceImpl.$lower_method_name$(($Subscriber$<$output_type$>) responseSubscriber);\n");
 
 
   p->Outdent();
@@ -888,7 +873,8 @@ static void PrintGetServiceDescriptorMethod(const ServiceDescriptor* service,
   (*vars)["service_name"] = service->name();
 
 
-  if (flavor == ProtoFlavor::NORMAL) {
+  // wait for new GRPC release to enable this
+  /*if (flavor == ProtoFlavor::NORMAL) {
     (*vars)["proto_descriptor_supplier"] = service->name() + "DescriptorSupplier";
     (*vars)["proto_class_name"] = google::protobuf::compiler::java::ClassName(service->file());
     p->Print(
@@ -926,7 +912,7 @@ static void PrintGetServiceDescriptorMethod(const ServiceDescriptor* service,
         "new $proto_descriptor_supplier$()");
     p->Outdent();
     p->Outdent();
-  } else {
+  } else {*/
     p->Print(
       *vars,
       "private static $ServiceDescriptor$ serviceDescriptor;\n\n");
@@ -939,7 +925,7 @@ static void PrintGetServiceDescriptorMethod(const ServiceDescriptor* service,
     p->Print(
         *vars,
         "serviceDescriptor = new $ServiceDescriptor$(SERVICE_NAME");
-  }
+  //}
 
   p->Indent();
   p->Indent();
@@ -981,15 +967,15 @@ static void PrintBindServiceMethodBody(const ServiceDescriptor* service,
     bool server_streaming = method->server_streaming();
     if (client_streaming) {
       if (server_streaming) {
-        (*vars)["calls_method"] = "asyncBidiStreamingCall";
+        (*vars)["calls_method"] = "rxBidiStreamingCall";
       } else {
-        (*vars)["calls_method"] = "asyncClientStreamingCall";
+        (*vars)["calls_method"] = "rxClientStreamingCall";
       }
     } else {
       if (server_streaming) {
-        (*vars)["calls_method"] = "asyncServerStreamingCall";
+        (*vars)["calls_method"] = "rxServerStreamingCall";
       } else {
-        (*vars)["calls_method"] = "asyncUnaryCall";
+        (*vars)["calls_method"] = "rxUnaryCall";
       }
     }
     p->Print(*vars, ".addMethod(\n");
@@ -1059,47 +1045,13 @@ static void PrintService(const ServiceDescriptor* service,
   p->Outdent();
   p->Print("}\n\n");
 
-  // TODO(nmittler): Replace with WriteDocComment once included by protobuf distro.
-  GrpcWriteDocComment(p, " Creates a new blocking-style stub that supports unary and streaming "
-                         "output calls on the service");
-  p->Print(
-      *vars,
-      "public static $service_name$BlockingStub newBlockingStub(\n"
-      "    $Channel$ channel) {\n");
-  p->Indent();
-  p->Print(
-      *vars,
-      "return new $service_name$BlockingStub(channel);\n");
-  p->Outdent();
-  p->Print("}\n\n");
-
-  // TODO(nmittler): Replace with WriteDocComment once included by protobuf distro.
-  GrpcWriteDocComment(p, " Creates a new ListenableFuture-style stub that supports unary and "
-                         "streaming output calls on the service");
-  p->Print(
-      *vars,
-      "public static $service_name$FutureStub newFutureStub(\n"
-      "    $Channel$ channel) {\n");
-  p->Indent();
-  p->Print(
-      *vars,
-      "return new $service_name$FutureStub(channel);\n");
-  p->Outdent();
-  p->Print("}\n\n");
-
   bool generate_nano = flavor == ProtoFlavor::NANO;
   PrintStub(service, vars, p, ABSTRACT_CLASS, generate_nano, enable_deprecated);
   PrintStub(service, vars, p, ASYNC_CLIENT_IMPL, generate_nano, enable_deprecated);
-  PrintStub(service, vars, p, BLOCKING_CLIENT_IMPL, generate_nano, enable_deprecated);
-  PrintStub(service, vars, p, FUTURE_CLIENT_IMPL, generate_nano, enable_deprecated);
 
   if (enable_deprecated) {
     PrintDeprecatedDocComment(service, vars, p);
     PrintStub(service, vars, p, ASYNC_INTERFACE, generate_nano, true);
-    PrintDeprecatedDocComment(service, vars, p);
-    PrintStub(service, vars, p, BLOCKING_CLIENT_INTERFACE, generate_nano, true);
-    PrintDeprecatedDocComment(service, vars, p);
-    PrintStub(service, vars, p, FUTURE_CLIENT_INTERFACE, generate_nano, true);
 
     PrintDeprecatedDocComment(service, vars, p);
     p->Print(
@@ -1127,34 +1079,20 @@ static void PrintService(const ServiceDescriptor* service,
 
 void PrintImports(Printer* p, bool generate_nano) {
   p->Print(
-      "import static "
-      "io.grpc.stub.ClientCalls.asyncUnaryCall;\n"
-      "import static "
-      "io.grpc.stub.ClientCalls.asyncServerStreamingCall;\n"
-      "import static "
-      "io.grpc.stub.ClientCalls.asyncClientStreamingCall;\n"
-      "import static "
-      "io.grpc.stub.ClientCalls.asyncBidiStreamingCall;\n"
-      "import static "
-      "io.grpc.stub.ClientCalls.blockingUnaryCall;\n"
-      "import static "
-      "io.grpc.stub.ClientCalls.blockingServerStreamingCall;\n"
-      "import static "
-      "io.grpc.stub.ClientCalls.futureUnaryCall;\n"
-      "import static "
-      "io.grpc.MethodDescriptor.generateFullMethodName;\n"
-      "import static "
-      "io.grpc.stub.ServerCalls.asyncUnaryCall;\n"
-      "import static "
-      "io.grpc.stub.ServerCalls.asyncServerStreamingCall;\n"
-      "import static "
-      "io.grpc.stub.ServerCalls.asyncClientStreamingCall;\n"
-      "import static "
-      "io.grpc.stub.ServerCalls.asyncBidiStreamingCall;\n"
-      "import static "
-      "io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall;\n"
-      "import static "
-      "io.grpc.stub.ServerCalls.asyncUnimplementedStreamingCall;\n\n");
+      "import static io.grpc.MethodDescriptor.generateFullMethodName;\n"
+      "import static io.grpc.rx.stub.ClientCallsRx.rxUnaryCall;\n"
+      "import static io.grpc.rx.stub.ClientCallsRx.rxServerStreamingCall;\n"
+      "import static io.grpc.rx.stub.ClientCallsRx.rxClientStreamingCall;\n"
+      "import static io.grpc.rx.stub.ClientCallsRx.rxBidiStreamingCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.rxUnaryCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.rxServerStreamingCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.rxClientStreamingCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.rxBidiStreamingCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedUnaryCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedServerStreamingCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedClientStreamingCall;\n"
+      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedBidiStreamingCall;\n"
+      "\n");
   if (generate_nano) {
     p->Print("import java.io.IOException;\n\n");
   }
@@ -1186,6 +1124,8 @@ void GenerateService(const ServiceDescriptor* service,
   vars["MethodDescriptor"] = "io.grpc.MethodDescriptor";
   vars["NanoUtils"] = "io.grpc.protobuf.nano.NanoUtils";
   vars["StreamObserver"] = "io.grpc.stub.StreamObserver";
+  vars["SingleObserver"] = "io.reactivex.SingleObserver";
+  vars["Subscriber"] = "org.reactivestreams.Subscriber";
   vars["Iterator"] = "java.util.Iterator";
   vars["Generated"] = "javax.annotation.Generated";
   vars["ListenableFuture"] =
@@ -1228,7 +1168,7 @@ string ServiceJavaPackage(const FileDescriptor* file, bool nano) {
 }
 
 string ServiceClassName(const google::protobuf::ServiceDescriptor* service) {
-  return service->name() + "Grpc";
+  return service->name() + "GrpcRx";
 }
 
-}  // namespace java_grpc_generator
+}  // namespace rxjava_grpc_generator

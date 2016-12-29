@@ -23,10 +23,10 @@ static string JavaPackageToDir(const string& package_name) {
   return package_dir;
 }
 
-class JavaGrpcGenerator : public google::protobuf::compiler::CodeGenerator {
+class RxJavaGrpcGenerator : public google::protobuf::compiler::CodeGenerator {
  public:
-  JavaGrpcGenerator() {}
-  virtual ~JavaGrpcGenerator() {}
+  RxJavaGrpcGenerator() {}
+  virtual ~RxJavaGrpcGenerator() {}
 
   virtual bool Generate(const google::protobuf::FileDescriptor* file,
                         const string& parameter,
@@ -35,36 +35,36 @@ class JavaGrpcGenerator : public google::protobuf::compiler::CodeGenerator {
     vector<pair<string, string> > options;
     google::protobuf::compiler::ParseGeneratorParameter(parameter, &options);
 
-    java_grpc_generator::ProtoFlavor flavor =
-        java_grpc_generator::ProtoFlavor::NORMAL;
+    rxjava_grpc_generator::ProtoFlavor flavor =
+        rxjava_grpc_generator::ProtoFlavor::NORMAL;
 
     bool enable_deprecated = false;
     for (int i = 0; i < options.size(); i++) {
       if (options[i].first == "nano") {
-        flavor = java_grpc_generator::ProtoFlavor::NANO;
+        flavor = rxjava_grpc_generator::ProtoFlavor::NANO;
       } else if (options[i].first == "lite") {
-        flavor = java_grpc_generator::ProtoFlavor::LITE;
+        flavor = rxjava_grpc_generator::ProtoFlavor::LITE;
       } else if (options[i].first == "enable_deprecated") {
         enable_deprecated = options[i].second == "true";
       }
     }
 
-    string package_name = java_grpc_generator::ServiceJavaPackage(
-        file, flavor == java_grpc_generator::ProtoFlavor::NANO);
+    string package_name = rxjava_grpc_generator::ServiceJavaPackage(
+        file, flavor == rxjava_grpc_generator::ProtoFlavor::NANO);
     string package_filename = JavaPackageToDir(package_name);
     for (int i = 0; i < file->service_count(); ++i) {
       const google::protobuf::ServiceDescriptor* service = file->service(i);
       string filename = package_filename
-          + java_grpc_generator::ServiceClassName(service) + ".java";
+          + rxjava_grpc_generator::ServiceClassName(service) + ".java";
       std::unique_ptr<google::protobuf::io::ZeroCopyOutputStream> output(
           context->Open(filename));
-      java_grpc_generator::GenerateService(service, output.get(), flavor, enable_deprecated);
+      rxjava_grpc_generator::GenerateService(service, output.get(), flavor, enable_deprecated);
     }
     return true;
   }
 };
 
 int main(int argc, char* argv[]) {
-  JavaGrpcGenerator generator;
+  RxJavaGrpcGenerator generator;
   return google::protobuf::compiler::PluginMain(argc, argv, &generator);
 }

@@ -25,7 +25,7 @@ public final class ServerCallsRx {
 	 *
 	 * @param method an adaptor to the actual method on the service implementation.
 	 */
-	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> unaryCall(
+	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxUnaryCall(
 		final UnaryMethod<ReqT, RespT> method) {
 		return new UnaryServerCallHandler<ReqT, RespT>(method);
 	}
@@ -35,7 +35,7 @@ public final class ServerCallsRx {
 	 *
 	 * @param method an adaptor to the actual method on the service implementation.
 	 */
-	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> serverStreamingCall(
+	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxServerStreamingCall(
 		final ServerStreamingMethod<ReqT, RespT> method) {
 		return new ServerStreamingServerCallHandler<ReqT, RespT>(method);
 	}
@@ -45,12 +45,12 @@ public final class ServerCallsRx {
 	 *
 	 * @param method an adaptor to the actual method on the service implementation.
 	 */
-	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> clientStreamingCall(
+	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxClientStreamingCall(
 		final ClientStreamingMethod<ReqT, RespT> method) {
 		return new ClientStreamingServerCallHandler<ReqT, RespT>(method);
 	}
 
-	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> bidiStreamingCall(
+	public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxBidiStreamingCall(
 		final BidiStreamingMethod<ReqT, RespT> method) {
 		return new BidiStreamingServerCallHandler<ReqT, RespT>(method);
 	}

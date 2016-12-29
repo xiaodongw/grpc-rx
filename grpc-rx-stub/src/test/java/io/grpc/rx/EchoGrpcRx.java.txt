@@ -1,3 +1,4 @@
+// this is manually crafted, to compare with the generated version
 package io.grpc.rx;
 
 import static io.grpc.MethodDescriptor.generateFullMethodName;
@@ -96,28 +97,28 @@ public class EchoGrpcRx {
 			return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
 				.addMethod(
 					METHOD_UNARY,
-					io.grpc.rx.stub.ServerCallsRx.unaryCall(
+					rxUnaryCall(
 						new MethodHandlers<
 							io.grpc.rx.EchoService.EchoReq,
 							io.grpc.rx.EchoService.EchoResp>(
 							this, METHODID_UNARY)))
 				.addMethod(
 					METHOD_SERVER_STREAMING,
-					io.grpc.rx.stub.ServerCallsRx.serverStreamingCall(
+					rxServerStreamingCall(
 						new MethodHandlers<
 							io.grpc.rx.EchoService.EchoCountReq,
 							io.grpc.rx.EchoService.EchoResp>(
 							this, METHODID_SERVER_STREAMING)))
 				.addMethod(
 					METHOD_CLIENT_STREAMING,
-					io.grpc.rx.stub.ServerCallsRx.clientStreamingCall(
+					rxClientStreamingCall(
 						new MethodHandlers<
 							io.grpc.rx.EchoService.EchoReq,
 							io.grpc.rx.EchoService.EchoCountResp>(
 							this, METHODID_CLIENT_STREAMING)))
 				.addMethod(
 					METHOD_BIDI_STREAMING,
-					io.grpc.rx.stub.ServerCallsRx.bidiStreamingCall(
+					rxBidiStreamingCall(
 						new MethodHandlers<
 							io.grpc.rx.EchoService.EchoReq,
 							io.grpc.rx.EchoService.EchoResp>(

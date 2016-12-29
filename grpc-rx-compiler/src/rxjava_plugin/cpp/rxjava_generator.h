@@ -1,5 +1,5 @@
-#ifndef NET_GRPC_COMPILER_JAVA_GENERATOR_H_
-#define NET_GRPC_COMPILER_JAVA_GENERATOR_H_
+#ifndef NET_GRPC_COMPILER_RXJAVA_GENERATOR_H_
+#define NET_GRPC_COMPILER_RXJAVA_GENERATOR_H_
 
 #include <stdlib.h>  // for abort()
 #include <iostream>
@@ -36,7 +36,7 @@ class LogHelper {
 
 using namespace std;
 
-namespace java_grpc_generator {
+namespace rxjava_grpc_generator {
 
 enum ProtoFlavor {
   NORMAL, LITE, NANO
@@ -55,6 +55,6 @@ void GenerateService(const google::protobuf::ServiceDescriptor* service,
                      ProtoFlavor flavor,
                      bool enable_deprecated);
 
-}  // namespace java_grpc_generator
+}  // namespace rxjava_grpc_generator
 
-#endif  // NET_GRPC_COMPILER_JAVA_GENERATOR_H_
+#endif  // NET_GRPC_COMPILER_RXJAVA_GENERATOR_H_
