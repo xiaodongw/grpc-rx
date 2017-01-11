@@ -3,282 +3,278 @@ package io.grpc.rx.stub;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.Status;
+import io.grpc.rx.core.GrpcPublisher;
+import io.grpc.rx.core.GrpcSubscriber;
 import io.grpc.stub.StreamObserver;
-import io.reactivex.Flowable;
 import io.reactivex.SingleObserver;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
-
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ClientCallsRx {
-	private ClientCallsRx() {
-	}
+    private ClientCallsRx() {
+    }
 
-	/**
-	 * Executes a unary call with a response {@link SingleObserver}.
-	 */
-	public static <ReqT, RespT> void rxUnaryCall(
-		ClientCall<ReqT, RespT> call,
-		ReqT request,
-		SingleObserver<RespT> responseObserver) {
-		SingleRequestAdapter<ReqT> requestAdapter = new SingleRequestAdapter<>(call, request);
-		SingleResponseAdapter<RespT> responseAdapter = new SingleResponseAdapter<>(call, responseObserver);
-		ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestAdapter, responseAdapter);
-		startCall(call, proxy);
-	}
+    /**
+     * Executes a unary call with a response {@link SingleObserver}.
+     */
+    public static <ReqT, RespT> void rxUnaryCall(
+            ClientCall<ReqT, RespT> call,
+            ReqT request,
+            SingleObserver<RespT> responseObserver) {
+        SingleRequestSender<ReqT> requestSender = new SingleRequestSender<>(call, request);
+        SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<>(call, responseObserver);
+        ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
+        startCall(call, proxy);
+    }
 
-	/**
-	 * Executes a server-streaming call with a response {@link Subscriber}.
-	 */
-	public static <ReqT, RespT> void rxServerStreamingCall(
-		ClientCall<ReqT, RespT> call,
-		ReqT request,
-		Subscriber<RespT> responseSubscriber) {
-		SingleRequestAdapter<ReqT> requestAdapter = new SingleRequestAdapter<ReqT>(call, request);
-		StreamResponseAdapter<RespT> responseAdapter = new StreamResponseAdapter<RespT>(call);
-		ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestAdapter, responseAdapter);
-		startCall(call, proxy);
+    /**
+     * Executes a server-streaming call with a response {@link Subscriber}.
+     */
+    public static <ReqT, RespT> void rxServerStreamingCall(
+            ClientCall<ReqT, RespT> call,
+            ReqT request,
+            Subscriber<RespT> responseSubscriber) {
+        SingleRequestSender<ReqT> requestSender = new SingleRequestSender<ReqT>(call, request);
+        StreamResponseReceiver<RespT> responseReceiver = new StreamResponseReceiver<RespT>(call);
+        ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
+        startCall(call, proxy);
 
-		responseAdapter.subscribe(responseSubscriber);
-	}
+        responseReceiver.getPublisher().subscribe(responseSubscriber);
+    }
 
-	/**
-	 * Executes a client-streaming call returning a {@link StreamObserver} for the request messages.
-	 *
-	 * @return request stream observer.
-	 */
-	public static <ReqT, RespT> Subscriber<ReqT> rxClientStreamingCall(
-		ClientCall<ReqT, RespT> call,
-		SingleObserver<RespT> responseObserver) {
-		StreamRequestAdapter<ReqT> requestAdapter = new StreamRequestAdapter<>(call);
-		SingleResponseAdapter<RespT> responseAdapter = new SingleResponseAdapter<>(call, responseObserver);
-		ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(
-			requestAdapter,
-			responseAdapter);
-		startCall(call, proxy);
-		return requestAdapter;
-	}
+    /**
+     * Executes a client-streaming call returning a {@link StreamObserver} for the requestMore messages.
+     *
+     * @return requestMore stream observer.
+     */
+    public static <ReqT, RespT> Subscriber<ReqT> rxClientStreamingCall(
+            ClientCall<ReqT, RespT> call,
+            SingleObserver<RespT> responseObserver) {
+        StreamRequestSender<ReqT> requestSender = new StreamRequestSender<>(call);
+        SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<>(call, responseObserver);
+        ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(
+                requestSender,
+                responseReceiver);
+        startCall(call, proxy);
+        return requestSender.getSubscriber();
+    }
 
-	/**
-	 * Executes a bidi-streaming call.
-	 *
-	 * @return request stream observer.
-	 */
-	public static <ReqT, RespT> Subscriber<ReqT> rxBidiStreamingCall(
-		ClientCall<ReqT, RespT> call,
-		Subscriber<RespT> responseSubscriber) {
-		StreamRequestAdapter<ReqT> requestAdapter = new StreamRequestAdapter<>(call);
-		StreamResponseAdapter<RespT> responseAdapter = new StreamResponseAdapter<>(call);
-		ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestAdapter, responseAdapter);
-		startCall(call, proxy);
+    /**
+     * Executes a bidi-streaming call.
+     *
+     * @return requestMore stream observer.
+     */
+    public static <ReqT, RespT> Subscriber<ReqT> rxBidiStreamingCall(
+            ClientCall<ReqT, RespT> call,
+            Subscriber<RespT> responseSubscriber) {
+        StreamRequestSender<ReqT> requestSender = new StreamRequestSender<>(call);
+        StreamResponseReceiver<RespT> responseReceiver = new StreamResponseReceiver<>(call);
+        ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
+        startCall(call, proxy);
 
-		responseAdapter.subscribe(responseSubscriber);
-		return requestAdapter;
-	}
+        responseReceiver.getPublisher().subscribe(responseSubscriber);
+        return requestSender.getSubscriber();
+    }
 
-	private static <ReqT, RespT> void startCall(ClientCall<ReqT, RespT> call,
-												ClientCallProxy<ReqT, RespT> proxy) {
-		call.start(proxy, new Metadata());
-		proxy.onStart();
-	}
+    private static <ReqT, RespT> void startCall(ClientCall<ReqT, RespT> call,
+                                                ClientCallProxy<ReqT, RespT> proxy) {
+        call.start(proxy, new Metadata());
+        proxy.start();
+    }
 
-	private static abstract class ClientCallAdapter<RespT> extends ClientCall.Listener<RespT> {
-		public void onStart() {
-		}
-	}
+    private static abstract class ClientCallListener<RespT> extends ClientCall.Listener<RespT> {
+        public abstract void start();
+    }
 
-	private static class ClientCallProxy<ReqT, RespT> extends ClientCallAdapter<RespT> {
-		private ClientCallAdapter<RespT> requestAdapter;
-		private ClientCallAdapter<RespT> responseAdapter;
+    private static class ClientCallProxy<ReqT, RespT> extends ClientCallListener<RespT> {
+        private ClientCallListener<RespT> requestAdapter;
+        private ClientCallListener<RespT> responseAdapter;
 
-		public ClientCallProxy(ClientCallAdapter<RespT> requestAdapter, ClientCallAdapter<RespT> responseAdapter) {
-			this.requestAdapter = requestAdapter;
-			this.responseAdapter = responseAdapter;
-		}
+        public ClientCallProxy(ClientCallListener<RespT> requestAdapter, ClientCallListener<RespT> responseAdapter) {
+            this.requestAdapter = requestAdapter;
+            this.responseAdapter = responseAdapter;
+        }
 
-		@Override
-		public void onStart() {
-			requestAdapter.onStart();
-			responseAdapter.onStart();
-		}
+        @Override
+        public void start() {
+            requestAdapter.start();
+            responseAdapter.start();
+        }
 
-		@Override
-		public void onHeaders(Metadata headers) {
-			//requestAdapter.onHeaders(headers);
-			responseAdapter.onHeaders(headers);
-		}
+        @Override
+        public void onHeaders(Metadata headers) {
+            //requestAdapter.onHeaders(headers);
+            responseAdapter.onHeaders(headers);
+        }
 
-		@Override
-		public void onMessage(RespT message) {
-			//requestAdapter.onMessage(message);
-			responseAdapter.onMessage(message);
-		}
+        @Override
+        public void onMessage(RespT message) {
+            //requestAdapter.onMessage(message);
+            responseAdapter.onMessage(message);
+        }
 
-		@Override
-		public void onClose(Status status, Metadata trailers) {
-			//requestAdapter.onClose(status, trailers);
-			responseAdapter.onClose(status, trailers);
-		}
+        @Override
+        public void onClose(Status status, Metadata trailers) {
+            //requestAdapter.onClose(status, trailers);
+            responseAdapter.onClose(status, trailers);
+        }
 
-		@Override
-		public void onReady() {
-			requestAdapter.onReady();
-			//responseAdapter.askResponses();
-		}
-	}
+        @Override
+        public void onReady() {
+            requestAdapter.onReady();
+            //responseAdapter.askResponses();
+        }
+    }
 
-	private static class SingleResponseAdapter<RespT> extends ClientCallAdapter<RespT> {
-		private ClientCall<?, RespT> call;
-		private SingleObserver<RespT> responseObserver;
-		private RespT response;
+    private static class SingleRequestSender<ReqT> extends ClientCallListener<ReqT> {
+        private ClientCall<ReqT, ?> call;
+        private ReqT request;
 
-		public SingleResponseAdapter(ClientCall<?, RespT> call, SingleObserver<RespT> responseObserver) {
-			this.call = call;
-			this.responseObserver = responseObserver;
-		}
+        public SingleRequestSender(ClientCall<ReqT, ?> call, ReqT request) {
+            this.call = call;
+            this.request = request;
+        }
 
-		@Override
-		public void onStart() {
-			call.request(2);
-		}
+        @Override
+        public void start() {
+            call.sendMessage(request);
+            call.halfClose();
+        }
+    }
 
-		public void onMessage(RespT value) {
-			if (this.response != null) {
-				throw Status.INTERNAL.withDescription("More than one value received for unary call")
-					.asRuntimeException();
-			}
-			this.response = value;
-		}
+    private static class SingleResponseReceiver<RespT> extends ClientCallListener<RespT> {
+        private ClientCall<?, RespT> call;
+        private SingleObserver<RespT> responseObserver;
+        private RespT response;
 
-		public void onClose(Status status, Metadata trailers) {
-			if (status.isOk()) {
-				if (response == null) {
-					// No value received so mark the future as an error
-					responseObserver.onError(
-						Status.INTERNAL.withDescription("No value received for unary call")
-							.asRuntimeException(trailers));
-				} else {
-					responseObserver.onSuccess(response);
-				}
-			} else {
-				responseObserver.onError(status.asRuntimeException(trailers));
-			}
-		}
-	}
+        public SingleResponseReceiver(ClientCall<?, RespT> call, SingleObserver<RespT> responseObserver) {
+            this.call = call;
+            this.responseObserver = responseObserver;
+        }
 
-	private static class StreamResponseAdapter<RespT> extends ClientCallAdapter<RespT> implements Publisher<RespT> {
-		private final ClientCall<?, RespT> call;
-		private AtomicReference<Subscriber> subscriber = new AtomicReference<>();
+        @Override
+        public void start() {
+            call.request(2);
+        }
 
-		@Override
-		public void subscribe(Subscriber<? super RespT> s) {
-			if (!subscriber.compareAndSet(null, s)) {
-				throw new IllegalStateException("Already has one subscriber and does not support more than one");
-			}
+        public void onMessage(RespT value) {
+            if (this.response != null) {
+                throw Status.INTERNAL.withDescription("More than one value received for unary call")
+                        .asRuntimeException();
+            }
+            this.response = value;
+        }
 
-			Subscription subscription = new Subscription() {
-				@Override
-				public void request(long n) {
-					// todo handle conversion overflow
-					call.request((int) n);
-				}
+        public void onClose(Status status, Metadata trailers) {
+            if (status.isOk()) {
+                if (response == null) {
+                    // No value received so mark the future as an error
+                    responseObserver.onError(
+                            Status.INTERNAL.withDescription("No value received for unary call")
+                                    .asRuntimeException(trailers));
+                } else {
+                    responseObserver.onSuccess(response);
+                }
+            } else {
+                responseObserver.onError(status.asRuntimeException(trailers));
+            }
+        }
+    }
 
-				@Override
-				public void cancel() {
-					call.cancel("Canceled by subscriber", null);
-				}
-			};
-			s.onSubscribe(subscription);
-		}
+    private static class StreamRequestSender<ReqT> extends ClientCallListener<ReqT> {
+        private Logger logger = LoggerFactory.getLogger(this.getClass());
+        private final ClientCall<ReqT, ?> call;
 
-		public StreamResponseAdapter(ClientCall<?, RespT> call) {
-			this.call = call;
-		}
+        private GrpcSubscriber<ReqT> grpcSubscriber = new GrpcSubscriber<ReqT>() {
+            @Override
+            protected boolean isReady() {
+                return call.isReady();
+            }
 
-		@Override
-		public void onMessage(RespT message) {
-			subscriber.get().onNext(message);
-		}
+            @Override
+            protected void sendMessage(ReqT req) {
+                call.sendMessage(req);
+            }
 
-		@Override
-		public void onClose(Status status, Metadata trailers) {
-			if (status.isOk()) {
-				subscriber.get().onComplete();
+            @Override
+            protected void error(Throwable t) {
+                call.cancel("Upstream error", t);
+            }
 
-			} else {
-				subscriber.get().onError(status.asRuntimeException(trailers));
-			}
-		}
-	}
+            @Override
+            protected void complete() {
+                call.halfClose();
+            }
+        };
 
-	private static class SingleRequestAdapter<ReqT> extends ClientCallAdapter<ReqT> {
-		private ClientCall<ReqT, ?> call;
-		private ReqT request;
+        public StreamRequestSender(ClientCall<ReqT, ?> call) {
+            this.call = call;
+        }
 
-		public SingleRequestAdapter(ClientCall<ReqT, ?> call, ReqT request) {
-			this.call = call;
-			this.request = request;
-		}
+        public Subscriber<ReqT> getSubscriber() {
+            return grpcSubscriber;
+        }
 
-		@Override
-		public void onStart() {
-			call.sendMessage(request);
-			call.halfClose();
-		}
-	}
+        @Override
+        public void onReady() {
+            logger.trace("onReady");
+            grpcSubscriber.ready();
+        }
 
-	private static class StreamRequestAdapter<ReqT> extends ClientCallAdapter<ReqT> implements Subscriber<ReqT> {
-		private final ClientCall<ReqT, ?> call;
+        @Override
+        public void start() {
+            grpcSubscriber.ready();
+        }
+    }
 
-		private int lowWatermark = 4;
-		private int highWatermark = 8;
+    private static class StreamResponseReceiver<RespT> extends ClientCallListener<RespT> {
+        private Logger logger = LoggerFactory.getLogger(this.getClass());
+        private final ClientCall<?, RespT> call;
 
-		private volatile Subscription subscription;
-		private final AtomicInteger pendingRequest = new AtomicInteger();
 
-		public StreamRequestAdapter(ClientCall<ReqT, ?> call) {
-			this.call = call;
-		}
+        private GrpcPublisher<RespT> grpcPublisher = new GrpcPublisher<RespT>() {
+            @Override
+            protected void requestMore(long n) {
+                call.request((int)n);
+            }
 
-		@Override
-		public void onReady() {
-			pullRequests();
-		}
+            @Override
+            protected void cancelSubscription(String message, Throwable cause) {
+                call.cancel(message, cause);
+            }
+        };
 
-		@Override
-		public void onSubscribe(Subscription s) {
-			subscription = s;
-			pullRequests();
-		}
+        public StreamResponseReceiver(ClientCall<?, RespT> call) {
+            this.call = call;
+        }
 
-		@Override
-		public void onNext(ReqT request) {
-			call.sendMessage(request);
-			pendingRequest.decrementAndGet();
-		}
+        public Publisher<RespT> getPublisher() {
+            return grpcPublisher;
+        }
 
-		@Override
-		public void onError(Throwable t) {
-			call.cancel("Error from request publisher", t);
-		}
 
-		@Override
-		public void onComplete() {
-			call.halfClose();
-		}
+        @Override
+        public void onMessage(RespT message) {
+            logger.trace("onMessage: message={}", message);
+            grpcPublisher.message(message);
+        }
 
-		private void pullRequests() {
-			if(subscription == null) return;
+        @Override
+        public void onClose(Status status, Metadata trailers) {
+            logger.trace("onClose");
+            if (status.isOk()) {
+                grpcPublisher.complete();
 
-			int pending = pendingRequest.get();
-			if (pending <= lowWatermark) {
-				int desired = highWatermark - pending;
-				subscription.request(desired);
-				pendingRequest.addAndGet(desired);
-			}
-		}
-	}
+            } else {
+                grpcPublisher.error(status.asRuntimeException(trailers));
+            }
+        }
+
+        @Override
+        public void start() {
+
+        }
+    }
 }

@@ -2,66 +2,34 @@ package io.grpc.rx.core;
 
 import io.reactivex.SingleObserver;
 import io.reactivex.SingleSource;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
 
-import java.util.concurrent.atomic.AtomicLong;
+public abstract class ClientStreamingProcessor<REQ, RESP> extends AutoSubscriber<REQ> implements SingleSource<RESP> {
+    private SingleObserver<? super RESP> responseObserver;
 
-public abstract class ClientStreamingProcessor<REQ, RESP> extends AtomicLong implements Subscriber<REQ>, SingleSource<RESP> {
-	private int batchSize;
-	private int waterMark;
+    public ClientStreamingProcessor(int lowWatermark, int highWatermark) {
+        super(lowWatermark, highWatermark);
+    }
 
-	private Subscription subscription;
-	private SingleObserver<? super RESP> responseObserver;
+    public ClientStreamingProcessor() {
+        super();
+    }
 
-	public ClientStreamingProcessor(int batchSize, int bufferSize) {
-		this.batchSize = batchSize;
-		waterMark = bufferSize - batchSize;
-	}
+    @Override
+    public void onError(Throwable t) {
+        cancelSubscription();
+        responseObserver.onError(t);
+    }
 
-	public ClientStreamingProcessor() {
-		this(4, 8);
-	}
+    @Override
+    public void onComplete() {
+        RESP resp = generateResponse();
+        responseObserver.onSuccess(resp);
+    }
 
-	@Override
-	public void onSubscribe(Subscription s) {
-		this.subscription = s;
+    @Override
+    public void subscribe(SingleObserver<? super RESP> observer) {
+        responseObserver = observer;
+    }
 
-		request();
-	}
-
-	@Override
-	public void onNext(REQ req) {
-		processRequest(req);
-
-		long pending = decrementAndGet();
-		if (pending < waterMark) {
-			request();
-		}
-	}
-
-	@Override
-	public void onError(Throwable t) {
-		responseObserver.onError(t);
-	}
-
-	@Override
-	public void onComplete() {
-		RESP resp = generateResponse();
-		responseObserver.onSuccess(resp);
-	}
-
-	private void request() {
-		subscription.request(batchSize);
-		addAndGet(batchSize);
-	}
-
-	@Override
-	public void subscribe(SingleObserver<? super RESP> observer) {
-		responseObserver = observer;
-		//responseObserver.onSubscribe();
-	}
-
-	protected abstract RESP generateResponse();
-	protected abstract void processRequest(REQ req);
+    protected abstract RESP generateResponse();
 }

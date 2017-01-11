@@ -8,6 +8,22 @@ buildscript {
   }
 }
 
+apply plugin: "com.google.osdetector"
+
+ext {
+  def exeSuffix = osdetector.os == 'windows' ? ".exe" : ""
+  protocPluginBaseName = 'protoc-gen-grpc-rxjava'
+  rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
+
+  grpcJavaVersion = '1.0.3'
+  protobufVersion = '3.1.0'
+  rxJavaVersion = '2.0.4'
+
+  libs = [
+      //scalaLibrary: "org.scala-lang:scala-library:${scalaVersion}"
+  ]
+}
+
 subprojects {
   apply plugin: "checkstyle"
   apply plugin: "java"
@@ -16,24 +32,7 @@ subprojects {
   apply plugin: "signing"
   apply plugin: "jacoco"
 
-  apply plugin: "com.google.osdetector"
-
   group = "io.grpc"
-
-
-  ext {
-    def exeSuffix = osdetector.os == 'windows' ? ".exe" : ""
-    protocPluginBaseName = 'protoc-gen-grpc-rxjava'
-    rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
-
-    grpcJavaVersion = '1.0.3'
-    protobufVersion = '3.1.0'
-    rxJavaVersion = '2.0.3'
-
-    libs = [
-      //scalaLibrary: "org.scala-lang:scala-library:${scalaVersion}"
-    ]
-  }
 
   repositories {
     mavenCentral()

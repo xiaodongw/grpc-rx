@@ -4,7 +4,12 @@ import org.reactivestreams.Processor;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-public abstract class BidiStreamingProcessor<REQ, RESP> implements Processor<REQ, RESP>, Subscription {
+/**
+ * A processor receives request and emits response, request to response has 1:1 mapping.
+ * @param <REQ>
+ * @param <RESP>
+ */
+public abstract class BidiStreamingProcessor<REQ, RESP> implements Processor<REQ, RESP> {
 	private Subscription requestSubscription;
 	private Subscriber<? super RESP> responseSubscriber;
 
@@ -13,7 +18,17 @@ public abstract class BidiStreamingProcessor<REQ, RESP> implements Processor<REQ
 	@Override
 	public void subscribe(Subscriber<? super RESP> s) {
 		responseSubscriber = s;
-		responseSubscriber.onSubscribe(this);
+		responseSubscriber.onSubscribe(new Subscription() {
+            @Override
+            public void request(long n) {
+                requestSubscription.request(n);
+            }
+
+            @Override
+            public void cancel() {
+                requestSubscription.cancel();
+            }
+        });
 	}
 
 	@Override
@@ -35,15 +50,5 @@ public abstract class BidiStreamingProcessor<REQ, RESP> implements Processor<REQ
 	@Override
 	public void onComplete() {
 		responseSubscriber.onComplete();
-	}
-
-	@Override
-	public void request(long n) {
-		requestSubscription.request(n);
-	}
-
-	@Override
-	public void cancel() {
-		requestSubscription.cancel();
 	}
 }
