@@ -57,6 +57,10 @@ public final class ServerCallsRx {
         return new BidiStreamingServerCallHandler<ReqT, RespT>(method);
     }
 
+    /**
+     * A [SingleObserver] which dispatches the message to GRPC as response.
+     * @param <RespT>
+     */
     private static class ResponseObserver<RespT> implements SingleObserver<RespT> {
         private ServerCall<?, RespT> call;
 
@@ -81,6 +85,10 @@ public final class ServerCallsRx {
         }
     }
 
+    /**
+     * A [Subscriber] which dispatches messages to GRPC as response.
+     * @param <RespT>
+     */
     private static class ResponseSubscriber<RespT> implements Subscriber<RespT> {
         private Subscription subscription;
         private ServerCall<?, RespT> call;
@@ -138,6 +146,10 @@ public final class ServerCallsRx {
         }
     }
 
+    /**
+     * Listener for single request, it raises error if more than one request arrives
+     * @param <ReqT>
+     */
     private static abstract class SingleRequestListener<ReqT> extends ServerCall.Listener<ReqT> {
         private ServerCall<ReqT, ?> call;
         private ReqT request;
@@ -186,6 +198,10 @@ public final class ServerCallsRx {
         protected abstract void invoke(ReqT request);
     }
 
+    /**
+     * Streaming request listener, dispatches the request messages from GRPC to a [Subscriber]
+     * @param <ReqT>
+     */
     private static class StreamRequestListener<ReqT> extends ServerCall.Listener<ReqT> {
         private ServerCall<ReqT, ?> call;
         private Subscriber<ReqT> requestSubscriber;
@@ -242,6 +258,11 @@ public final class ServerCallsRx {
         }
     }
 
+    /**
+     * Unary call handler, combines SingleRequestListener & ResponseObserver
+     * @param <ReqT>
+     * @param <RespT>
+     */
     public static class UnaryServerCallHandler<ReqT, RespT> implements ServerCallHandler<ReqT, RespT> {
         private UnaryMethod<ReqT, RespT> method;
 
@@ -262,6 +283,11 @@ public final class ServerCallsRx {
         }
     }
 
+    /**
+     * Server streaming call handler, combines SingleRequestListener & ResponseSubscriber
+     * @param <ReqT>
+     * @param <RespT>
+     */
     public static class ServerStreamingServerCallHandler<ReqT, RespT> implements ServerCallHandler<ReqT, RespT> {
         private ServerStreamingMethod<ReqT, RespT> method;
 
@@ -287,6 +313,11 @@ public final class ServerCallsRx {
         }
     }
 
+    /**
+     * Client streaming handler, combines StreamRequestListener & ResponseObserver
+     * @param <ReqT>
+     * @param <RespT>
+     */
     public static class ClientStreamingServerCallHandler<ReqT, RespT> implements ServerCallHandler<ReqT, RespT> {
         private ClientStreamingMethod<ReqT, RespT> method;
 
@@ -302,6 +333,11 @@ public final class ServerCallsRx {
         }
     }
 
+    /**
+     * Bidi streaming handler, combines StreamRequestListener & ResponseSubscriber
+     * @param <ReqT>
+     * @param <RespT>
+     */
     public static class BidiStreamingServerCallHandler<ReqT, RespT> implements ServerCallHandler<ReqT, RespT> {
         private BidiStreamingMethod<ReqT, RespT> method;
 
