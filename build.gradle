@@ -15,9 +15,9 @@ ext {
   protocPluginBaseName = 'protoc-gen-grpc-rxjava'
   rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
 
-  grpcJavaVersion = '1.0.3'
-  protobufVersion = '3.1.0'
-  rxJavaVersion = '2.0.4'
+  grpcJavaVersion = '1.1.2'
+  protobufVersion = '3.2.0'
+  rxJavaVersion = '2.0.5'
 
   libs = [
       //scalaLibrary: "org.scala-lang:scala-library:${scalaVersion}"
