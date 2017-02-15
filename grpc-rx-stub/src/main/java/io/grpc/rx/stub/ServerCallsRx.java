@@ -84,8 +84,8 @@ public final class ServerCallsRx {
     private static class ResponseSubscriber<RespT> implements Subscriber<RespT> {
         private Subscription subscription;
         private ServerCall<?, RespT> call;
-        private int lowWaterMark = 4;
-        private int highWaterMark = 8;
+        private int lowWaterMark = 8;
+        private int highWaterMark = 32;
         private AtomicInteger pendingResps = new AtomicInteger();
         private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -127,6 +127,8 @@ public final class ServerCallsRx {
 //		}
 
         public void askResponses() {
+            if(subscription == null) return;
+
             int p = pendingResps.get();
             if (p < lowWaterMark) {
                 int want = highWaterMark - p;
