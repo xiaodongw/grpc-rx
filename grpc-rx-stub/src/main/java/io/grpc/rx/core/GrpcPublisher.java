@@ -10,46 +10,47 @@ import org.slf4j.LoggerFactory;
  * A publisher receives message from GRPC, then publishes them to the subscriber
  */
 public abstract class GrpcPublisher<T> implements Publisher<T> {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private Subscriber subscriber = null;
+  private Logger logger = LoggerFactory.getLogger(this.getClass());
+  private Subscriber subscriber = null;
 
-    @Override
-    public void subscribe(Subscriber<? super T> s) {
-        if (subscriber != null) {
-            throw new IllegalStateException("Already has one subscriber and does not support more than one");
-        }
-
-        subscriber = s;
-        Subscription subscription = new Subscription() {
-            @Override
-            public void request(long n) {
-                logger.trace("subscription.requestMore: n={}", n);
-                // todo handle conversion overflow
-                requestMore(n);
-            }
-
-            @Override
-            public void cancel() {
-                logger.trace("subscription.cancel");
-                cancelSubscription("Canceled by subscriber", null);
-            }
-        };
-
-        subscriber.onSubscribe(subscription);
+  @Override
+  public void subscribe(Subscriber<? super T> s) {
+    if (subscriber != null) {
+      throw new IllegalStateException("Already has one subscriber and does not support more than one");
     }
 
-    public void message(T msg) {
-        subscriber.onNext(msg);
-    }
+    subscriber = s;
+    Subscription subscription = new Subscription() {
+      @Override
+      public void request(long n) {
+        logger.trace("subscription.requestMore: n={}", n);
+        // todo handle conversion overflow
+        requestMore(n);
+      }
 
-    public void complete() {
-        subscriber.onComplete();
-    }
+      @Override
+      public void cancel() {
+        logger.trace("subscription.cancel");
+        cancelSubscription("Canceled by subscriber", null);
+      }
+    };
 
-    public void error(Throwable t) {
-        subscriber.onError(t);
-    }
+    subscriber.onSubscribe(subscription);
+  }
 
-    protected abstract void requestMore(long n);
-    protected abstract void cancelSubscription(String message, Throwable cause);
+  public void message(T msg) {
+    subscriber.onNext(msg);
+  }
+
+  public void complete() {
+    subscriber.onComplete();
+  }
+
+  public void error(Throwable t) {
+    subscriber.onError(t);
+  }
+
+  protected abstract void requestMore(long n);
+
+  protected abstract void cancelSubscription(String message, Throwable cause);
 }
