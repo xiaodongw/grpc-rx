@@ -28,21 +28,93 @@ subprojects {
   apply plugin: "checkstyle"
   apply plugin: "java"
   apply plugin: "maven"
-  //apply plugin: "idea"
+  apply plugin: "idea"
   apply plugin: "signing"
   apply plugin: "jacoco"
 
-  group = "io.grpc"
+  group = "io.atomos"
+  version = "0.1.0-SNAPSHOT" // CURRENT_GRPC_VERSION
+
+  sourceCompatibility = 1.6
+  targetCompatibility = 1.6
 
   repositories {
     mavenCentral()
     mavenLocal()
   }
 
+  signing {
+    required false
+    sign configurations.archives
+  }
+
+  // Disable JavaDoc doclint on Java 8. It's annoying.
+  if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+      tasks.withType(Javadoc) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+      }
+    }
+  }
+
+  checkstyle {
+    configFile = file("$rootDir/checkstyle.xml")
+    toolVersion = "6.17"
+    ignoreFailures = false
+    if (rootProject.hasProperty("checkstyle.ignoreFailures")) {
+      ignoreFailures = rootProject.properties["checkstyle.ignoreFailures"].toBoolean()
+    }
+    configProperties["rootDir"] = rootDir
+  }
+
+  checkstyleMain {
+    source = fileTree(dir: "src/main", include: "**/*.java")
+  }
+
+  checkstyleTest {
+    source = fileTree(dir: "src/test", include: "**/*.java")
+  }
+
+  task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+  }
+
+  task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+  }
+
+  artifacts {
+    archives javadocJar, sourcesJar
+  }
+
+  uploadArchives.repositories.mavenDeployer {
+    beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+    String stagingUrl
+    if (rootProject.hasProperty('repositoryId')) {
+      stagingUrl = 'https://oss.sonatype.org/service/local/staging/deployByRepositoryId/' +
+          rootProject.repositoryId
+    } else {
+      stagingUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+    }
+    def configureAuth = {
+      if (rootProject.hasProperty('ossrhUsername') && rootProject.hasProperty('ossrhPassword')) {
+        authentication(userName: rootProject.ossrhUsername, password: rootProject.ossrhPassword)
+      }
+    }
+    repository(url: stagingUrl, configureAuth)
+    snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/', configureAuth)
+  }
+  uploadArchives.onlyIf { !name.contains("thrift") }
+
   test {
     testLogging {
-      events "passed", "skipped", "failed"//, "standardOut", "standardError"
       exceptionFormat = 'full'
+      showExceptions true
+      showCauses true
+      showStackTraces true
     }
+    maxHeapSize = '1500m'
   }
 }
