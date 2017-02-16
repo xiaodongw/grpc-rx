@@ -29,7 +29,7 @@ public abstract class EchoTestBase {
   @Test
   public void serverStreaming() {
     EchoService.EchoCountReq req = EchoService.EchoCountReq.newBuilder().setCount(streamNum).build();
-    TestSubscriber<EchoService.EchoResp> responseSubscriber = new AutoTestSubscriber<>(4);
+    TestSubscriber<EchoService.EchoResp> responseSubscriber = new AutoTestSubscriber<EchoResp>(4);
 
     client.serverStreaming(req, responseSubscriber);
 

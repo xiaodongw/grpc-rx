@@ -20,7 +20,7 @@ import static io.grpc.rx.stub.ServerCallsRx.unimplementedBidiStreamingCall;
  * </pre>
  */
 @javax.annotation.Generated(
-    value = "by gRPC proto compiler (version unspecified)",
+    value = "by gRPC proto compiler (version 0.1.0-SNAPSHOT)",
     comments = "Source: test.proto")
 public class TestServiceGrpcRx {
 

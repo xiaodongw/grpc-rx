@@ -212,7 +212,7 @@ public final class ServerCallsRx {
     private Subscription requestSubscription;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public StreamRequestListener(ServerCall<ReqT, ?> call, Subscriber<ReqT> requestSubscriber) {
+    public StreamRequestListener(final ServerCall<ReqT, ?> call, Subscriber<ReqT> requestSubscriber) {
       this.call = call;
       this.requestSubscriber = requestSubscriber;
 
@@ -277,7 +277,7 @@ public final class ServerCallsRx {
 
     @Override
     public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> call, Metadata headers) {
-      SingleObserver<RespT> responseObserver = new ResponseObserver<RespT>(call);
+      final SingleObserver<RespT> responseObserver = new ResponseObserver<RespT>(call);
 
       return new SingleRequestListener<ReqT>(call) {
         @Override
@@ -303,7 +303,7 @@ public final class ServerCallsRx {
 
     @Override
     public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> call, Metadata headers) {
-      ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call);
+      final ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call);
 
       return new SingleRequestListener<ReqT>(call) {
         @Override
@@ -355,7 +355,7 @@ public final class ServerCallsRx {
 
     @Override
     public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> call, Metadata headers) {
-      ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call);
+      final ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call);
       Subscriber<ReqT> requestSubscriber = method.invoke(responseSubscriber);
       return new StreamRequestListener<ReqT>(call, requestSubscriber) {
         @Override

@@ -17,7 +17,7 @@ ext {
 
   grpcJavaVersion = '1.1.2'
   protobufVersion = '3.2.0'
-  rxJavaVersion = '2.0.5'
+  rxJavaVersion = '2.0.6'
 
   libs = [
       //scalaLibrary: "org.scala-lang:scala-library:${scalaVersion}"

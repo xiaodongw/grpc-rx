@@ -23,8 +23,8 @@ public final class ClientCallsRx {
       ClientCall<ReqT, RespT> call,
       ReqT request,
       SingleObserver<RespT> responseObserver) {
-    SingleRequestSender<ReqT> requestSender = new SingleRequestSender<>(call, request);
-    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<>(call, responseObserver);
+    SingleRequestSender<ReqT> requestSender = new SingleRequestSender<ReqT>(call, request);
+    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<RespT>(call, responseObserver);
     ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
     startCall(call, proxy);
   }
@@ -52,8 +52,8 @@ public final class ClientCallsRx {
   public static <ReqT, RespT> Subscriber<ReqT> rxClientStreamingCall(
       ClientCall<ReqT, RespT> call,
       SingleObserver<RespT> responseObserver) {
-    StreamRequestSender<ReqT> requestSender = new StreamRequestSender<>(call);
-    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<>(call, responseObserver);
+    StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
+    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<RespT>(call, responseObserver);
     ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(
         requestSender,
         responseReceiver);
@@ -69,8 +69,8 @@ public final class ClientCallsRx {
   public static <ReqT, RespT> Subscriber<ReqT> rxBidiStreamingCall(
       ClientCall<ReqT, RespT> call,
       Subscriber<RespT> responseSubscriber) {
-    StreamRequestSender<ReqT> requestSender = new StreamRequestSender<>(call);
-    StreamResponseReceiver<RespT> responseReceiver = new StreamResponseReceiver<>(call);
+    StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
+    StreamResponseReceiver<RespT> responseReceiver = new StreamResponseReceiver<RespT>(call);
     ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
     startCall(call, proxy);
 

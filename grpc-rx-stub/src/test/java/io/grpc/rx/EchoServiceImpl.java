@@ -6,16 +6,23 @@ import io.grpc.rx.core.ClientStreamingProcessor;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
 import io.reactivex.SingleObserver;
+import io.reactivex.annotations.NonNull;
+import io.reactivex.functions.Function;
 import org.reactivestreams.Subscriber;
+
+import java.util.concurrent.Callable;
 
 import static io.grpc.rx.EchoService.*;
 
 public class EchoServiceImpl extends EchoImplBase {
   @Override
-  public void unary(EchoReq request, SingleObserver<EchoResp> responseObserver) {
-    Single.fromCallable(() -> {
-      EchoResp resp = EchoResp.newBuilder().setId(request.getId()).setValue(request.getValue()).build();
-      return resp;
+  public void unary(final EchoReq request, SingleObserver<EchoResp> responseObserver) {
+    Single.fromCallable(new Callable<EchoResp>() {
+      @Override
+      public EchoResp call() throws Exception {
+        EchoResp resp = EchoResp.newBuilder().setId(request.getId()).setValue(request.getValue()).build();
+        return resp;
+      }
     }).subscribe(responseObserver);
   }
 
@@ -42,7 +49,12 @@ public class EchoServiceImpl extends EchoImplBase {
   @Override
   public void serverStreaming(EchoCountReq request, Subscriber<EchoResp> responseSubscriber) {
     Flowable.range(0, request.getCount())
-        .map(i -> EchoResp.newBuilder().setId(i).setValue(i.toString()).build())
+        .map(new Function<Integer, EchoResp>() {
+          @Override
+          public EchoResp apply(@NonNull Integer i) throws Exception {
+            return EchoResp.newBuilder().setId(i).setValue(i.toString()).build();
+          }
+        })
         .subscribe(responseSubscriber);
   }
 
