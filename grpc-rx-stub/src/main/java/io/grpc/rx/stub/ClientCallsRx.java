@@ -3,10 +3,15 @@ package io.grpc.rx.stub;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.Status;
+import io.grpc.rx.core.DelegateClientCallListener;
 import io.grpc.rx.core.GrpcPublisher;
 import io.grpc.rx.core.GrpcSubscriber;
 import io.grpc.stub.StreamObserver;
+import io.reactivex.Flowable;
+import io.reactivex.Single;
 import io.reactivex.SingleObserver;
+import io.reactivex.SingleSource;
+import io.reactivex.disposables.Disposables;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
@@ -19,29 +24,41 @@ public final class ClientCallsRx {
   /**
    * Executes a unary call with a response {@link SingleObserver}.
    */
-  public static <ReqT, RespT> void rxUnaryCall(
-      ClientCall<ReqT, RespT> call,
-      ReqT request,
-      SingleObserver<RespT> responseObserver) {
-    SingleRequestSender<ReqT> requestSender = new SingleRequestSender<ReqT>(call, request);
-    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<RespT>(call, responseObserver);
-    ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
-    startCall(call, proxy);
+  public static <ReqT, RespT> Single<RespT> unaryCall(
+      final ClientCall<ReqT, RespT> call,
+      final ReqT request) {
+    final SingleRequestSender<ReqT> requestSender = new SingleRequestSender<ReqT>(call, request);
+    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<RespT>(call) {
+      @Override
+      public void startCall() {
+        requestSender.startCall();
+        super.startCall();
+      }
+    };
+
+    call.start(responseReceiver, new Metadata());
+
+    return Single.wrap(responseReceiver.singleSource());
   }
 
   /**
    * Executes a server-streaming call with a response {@link Subscriber}.
    */
-  public static <ReqT, RespT> void rxServerStreamingCall(
-      ClientCall<ReqT, RespT> call,
-      ReqT request,
-      Subscriber<RespT> responseSubscriber) {
-    SingleRequestSender<ReqT> requestSender = new SingleRequestSender<ReqT>(call, request);
-    StreamResponseReceiver<RespT> responseReceiver = new StreamResponseReceiver<RespT>(call);
-    ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
-    startCall(call, proxy);
+  public static <ReqT, RespT> Flowable<RespT> serverStreamingCall(
+      final ClientCall<ReqT, RespT> call,
+      ReqT request) {
+    final SingleRequestSender<ReqT> requestSender = new SingleRequestSender<ReqT>(call, request);
+    StreamingResponseReceiver<RespT> responseReceiver = new StreamingResponseReceiver<RespT>(call) {
+      @Override
+      public void startCall() {
+        requestSender.startCall();
+        super.startCall();
+      }
+    };
 
-    responseReceiver.getPublisher().subscribe(responseSubscriber);
+    call.start(responseReceiver, new Metadata());
+
+    return Flowable.fromPublisher(responseReceiver.publisher());
   }
 
   /**
@@ -49,16 +66,24 @@ public final class ClientCallsRx {
    *
    * @return requestMore stream observer.
    */
-  public static <ReqT, RespT> Subscriber<ReqT> rxClientStreamingCall(
+  public static <ReqT, RespT> Single<RespT> clientStreamingCall(
       ClientCall<ReqT, RespT> call,
-      SingleObserver<RespT> responseObserver) {
-    StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
-    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<RespT>(call, responseObserver);
-    ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(
-        requestSender,
-        responseReceiver);
-    startCall(call, proxy);
-    return requestSender.getSubscriber();
+      Flowable<ReqT> requests) {
+    final StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
+    SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<RespT>(call) {
+      @Override
+      public void startCall() {
+        requestSender.startCall();
+        super.startCall();
+      }
+    };
+
+    ClientCall.Listener<RespT> delegate = new DelegateClientCallListener<RespT>(requestSender, responseReceiver);
+    call.start(delegate, new Metadata());
+
+    requests.subscribe(requestSender.subscriber());
+
+    return Single.wrap(responseReceiver.singleSource());
   }
 
   /**
@@ -66,69 +91,35 @@ public final class ClientCallsRx {
    *
    * @return requestMore stream observer.
    */
-  public static <ReqT, RespT> Subscriber<ReqT> rxBidiStreamingCall(
+  public static <ReqT, RespT> Flowable<RespT> bidiStreamingCall(
       ClientCall<ReqT, RespT> call,
-      Subscriber<RespT> responseSubscriber) {
-    StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
-    StreamResponseReceiver<RespT> responseReceiver = new StreamResponseReceiver<RespT>(call);
-    ClientCallProxy<ReqT, RespT> proxy = new ClientCallProxy(requestSender, responseReceiver);
-    startCall(call, proxy);
+      Flowable<ReqT> requests) {
+    final StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
+    StreamingResponseReceiver<RespT> responseReceiver = new StreamingResponseReceiver<RespT>(call) {
+      @Override
+      public void startCall() {
+        requestSender.startCall();
+        super.startCall();
+      }
+    };
 
-    responseReceiver.getPublisher().subscribe(responseSubscriber);
-    return requestSender.getSubscriber();
+    ClientCall.Listener<RespT> delegate = new DelegateClientCallListener<RespT>(requestSender, responseReceiver);
+    call.start(delegate, new Metadata());
+
+    requests.subscribe(requestSender.subscriber());
+
+    return Flowable.fromPublisher(responseReceiver.publisher());
   }
 
-  private static <ReqT, RespT> void startCall(ClientCall<ReqT, RespT> call,
-                                              ClientCallProxy<ReqT, RespT> proxy) {
-    call.start(proxy, new Metadata());
-    proxy.start();
+  /**
+   * Interface for starting the call.
+   * The response Single / Flowable will trigger starting call on subscribe.
+   */
+  private interface StartCall {
+    void startCall();
   }
 
-  private static abstract class ClientCallListener<RespT> extends ClientCall.Listener<RespT> {
-    public abstract void start();
-  }
-
-  private static class ClientCallProxy<ReqT, RespT> extends ClientCallListener<RespT> {
-    private ClientCallListener<RespT> requestAdapter;
-    private ClientCallListener<RespT> responseAdapter;
-
-    public ClientCallProxy(ClientCallListener<RespT> requestAdapter, ClientCallListener<RespT> responseAdapter) {
-      this.requestAdapter = requestAdapter;
-      this.responseAdapter = responseAdapter;
-    }
-
-    @Override
-    public void start() {
-      requestAdapter.start();
-      responseAdapter.start();
-    }
-
-    @Override
-    public void onHeaders(Metadata headers) {
-      //requestAdapter.onHeaders(headers);
-      responseAdapter.onHeaders(headers);
-    }
-
-    @Override
-    public void onMessage(RespT message) {
-      //requestAdapter.onMessage(message);
-      responseAdapter.onMessage(message);
-    }
-
-    @Override
-    public void onClose(Status status, Metadata trailers) {
-      //requestAdapter.onClose(status, trailers);
-      responseAdapter.onClose(status, trailers);
-    }
-
-    @Override
-    public void onReady() {
-      requestAdapter.onReady();
-      //responseAdapter.askResponses();
-    }
-  }
-
-  private static class SingleRequestSender<ReqT> extends ClientCallListener<ReqT> {
+  private static class SingleRequestSender<ReqT> implements StartCall {
     private ClientCall<ReqT, ?> call;
     private ReqT request;
 
@@ -137,26 +128,37 @@ public final class ClientCallsRx {
       this.request = request;
     }
 
-    @Override
-    public void start() {
+    public void startCall() {
       call.sendMessage(request);
       call.halfClose();
     }
   }
 
-  private static class SingleResponseReceiver<RespT> extends ClientCallListener<RespT> {
-    private ClientCall<?, RespT> call;
-    private SingleObserver<RespT> responseObserver;
+  private static class SingleResponseReceiver<RespT> extends ClientCall.Listener<RespT> implements StartCall {
+    protected ClientCall<?, RespT> call;
+    private SingleObserver<? super RespT> responseObserver;
     private RespT response;
+    private SingleSource<RespT> source;
 
-    public SingleResponseReceiver(ClientCall<?, RespT> call, SingleObserver<RespT> responseObserver) {
-      this.call = call;
-      this.responseObserver = responseObserver;
+    public SingleSource<RespT> singleSource() {
+      return source;
     }
 
-    @Override
-    public void start() {
-      call.request(2);
+    public SingleResponseReceiver(ClientCall<?, RespT> call) {
+      this.call = call;
+
+      this.source = new SingleSource<RespT>() {
+        @Override
+        public void subscribe(SingleObserver<? super RespT> observer) {
+          responseObserver = observer;
+
+          // todo which disposable should be used here
+          observer.onSubscribe(Disposables.disposed());
+
+          // start call until response gets subscribed
+          startCall();
+        }
+      };
     }
 
     public void onMessage(RespT value) {
@@ -181,9 +183,13 @@ public final class ClientCallsRx {
         responseObserver.onError(status.asRuntimeException(trailers));
       }
     }
+
+    public void startCall() {
+      call.request(2);
+    }
   }
 
-  private static class StreamRequestSender<ReqT> extends ClientCallListener<ReqT> {
+  private static class StreamRequestSender<ReqT> extends ClientCall.Listener<ReqT> implements StartCall {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ClientCall<ReqT, ?> call;
 
@@ -213,7 +219,7 @@ public final class ClientCallsRx {
       this.call = call;
     }
 
-    public Subscriber<ReqT> getSubscriber() {
+    public Subscriber<ReqT> subscriber() {
       return grpcSubscriber;
     }
 
@@ -224,12 +230,12 @@ public final class ClientCallsRx {
     }
 
     @Override
-    public void start() {
-      grpcSubscriber.ready();
+    public void startCall() {
+      grpcSubscriber.requestMore();
     }
   }
 
-  private static class StreamResponseReceiver<RespT> extends ClientCallListener<RespT> {
+  private static class StreamingResponseReceiver<RespT> extends ClientCall.Listener<RespT> implements StartCall {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ClientCall<?, RespT> call;
 
@@ -244,13 +250,20 @@ public final class ClientCallsRx {
       protected void cancelSubscription(String message, Throwable cause) {
         call.cancel(message, cause);
       }
+
+      @Override
+      public void subscribe(Subscriber<? super RespT> s) {
+        super.subscribe(s);
+
+        startCall();
+      }
     };
 
-    public StreamResponseReceiver(ClientCall<?, RespT> call) {
+    public StreamingResponseReceiver(ClientCall<?, RespT> call) {
       this.call = call;
     }
 
-    public Publisher<RespT> getPublisher() {
+    public Publisher<RespT> publisher() {
       return grpcPublisher;
     }
 
@@ -272,9 +285,7 @@ public final class ClientCallsRx {
       }
     }
 
-    @Override
-    public void start() {
-
+    public void startCall() {
     }
   }
 }
