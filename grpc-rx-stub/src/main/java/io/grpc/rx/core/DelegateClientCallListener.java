@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A {@link ClientCall.Listener} which forwards all of its methods to several {@link ClientCall.Listener}.
+ * A {@link io.grpc.ClientCall.Listener} which forwards all of its methods to several {@link io.grpc.ClientCall.Listener}.
  */
 public class DelegateClientCallListener<T> extends ClientCall.Listener<T> {
   private ClientCall.Listener[] listeners;
