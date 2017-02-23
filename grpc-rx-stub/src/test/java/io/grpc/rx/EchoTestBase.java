@@ -4,11 +4,10 @@ import io.reactivex.Flowable;
 import io.reactivex.observers.TestObserver;
 import io.reactivex.subscribers.TestSubscriber;
 import org.junit.Test;
-import org.reactivestreams.Subscriber;
-
-import static io.grpc.rx.EchoService.*;
 
 import java.util.concurrent.TimeUnit;
+
+import static io.grpc.rx.EchoService.*;
 
 public abstract class EchoTestBase {
   protected EchoGrpcRx.EchoStub client;
@@ -20,7 +19,8 @@ public abstract class EchoTestBase {
     EchoService.EchoReq req = EchoReq.newBuilder().setId(1).setValue("Hello").build();
     TestObserver<EchoService.EchoResp> responseObserver = new TestObserver<EchoService.EchoResp>();
 
-    client.unary(req, responseObserver);
+    client.unary(req)
+        .subscribe(responseObserver);
 
     responseObserver.awaitDone(testWaitSeconds, TimeUnit.SECONDS);
     responseObserver.assertComplete();
@@ -31,7 +31,8 @@ public abstract class EchoTestBase {
     EchoService.EchoCountReq req = EchoService.EchoCountReq.newBuilder().setCount(streamNum).build();
     TestSubscriber<EchoService.EchoResp> responseSubscriber = new AutoTestSubscriber<EchoResp>(4);
 
-    client.serverStreaming(req, responseSubscriber);
+    client.serverStreaming(req)
+        .subscribe(responseSubscriber);
 
     responseSubscriber.awaitDone(testWaitSeconds, TimeUnit.SECONDS);
     responseSubscriber.assertValueCount(streamNum);
@@ -42,15 +43,14 @@ public abstract class EchoTestBase {
   public void clientStreaming() {
     TestObserver<EchoService.EchoCountResp> responseObserver = new TestObserver<EchoService.EchoCountResp>();
 
-    EchoService.EchoReq[] requests = new EchoService.EchoReq[streamNum];
-    for (int i = 0; i < requests.length; i++) {
-      requests[i] = EchoService.EchoReq.newBuilder().setId(i).setValue(String.format("%d", i)).build();
-    }
-    Flowable<EchoService.EchoReq> requestFlowable = Flowable.fromArray(requests);
-    Subscriber<EchoService.EchoReq> requestSubscriber = client.clientStreaming(responseObserver);
+    Flowable<EchoReq> requests = Flowable.range(0, streamNum)
+        .map(i -> EchoService.EchoReq.newBuilder()
+            .setId(i)
+            .setValue(String.format("%d", i))
+            .build());
 
-    // start to send requests to grpc subscriber
-    requestFlowable.subscribe(requestSubscriber);
+    client.clientStreaming(requests)
+        .subscribe(responseObserver);
 
     responseObserver.awaitDone(testWaitSeconds, TimeUnit.SECONDS);
     responseObserver.assertValue(EchoCountResp.newBuilder().setCount(streamNum).build());
@@ -59,18 +59,16 @@ public abstract class EchoTestBase {
 
   @Test
   public void bidiStreaming() {
-    EchoService.EchoReq[] requests = new EchoService.EchoReq[streamNum];
-    for (int i = 0; i < requests.length; i++) {
-      requests[i] = EchoService.EchoReq.newBuilder().setId(i).setValue(String.format("%d", i)).build();
-    }
-    Flowable<EchoService.EchoReq> requestFlowable = Flowable.fromArray(requests);
+    Flowable<EchoReq> requests = Flowable.range(0, streamNum)
+        .map(i -> EchoService.EchoReq.newBuilder()
+            .setId(i)
+            .setValue(String.format("%d", i))
+            .build());
 
     TestSubscriber<EchoService.EchoResp> responseSubscriber = new AutoTestSubscriber(4);
 
-    Subscriber<EchoService.EchoReq> requestSubscriber = client.bidiStreaming(responseSubscriber);
-
-    // start to send requests to grpc subscriber
-    requestFlowable.subscribe(requestSubscriber);
+    client.bidiStreaming(requests)
+        .subscribe(responseSubscriber);
 
     responseSubscriber.awaitDone(testWaitSeconds, TimeUnit.SECONDS);
     responseSubscriber.assertValueCount(streamNum);

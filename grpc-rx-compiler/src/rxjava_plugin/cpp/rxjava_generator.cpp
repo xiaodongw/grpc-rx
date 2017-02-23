@@ -622,26 +622,24 @@ static void PrintStub(
           case MethodType::UNARY:
             p->Print(
                 *vars,
-                "void $lower_method_name$($input_type$ request,\n"
-                "    $SingleObserver$<$output_type$> responseObserver)");
+                "$Single$<$output_type$> $lower_method_name$($input_type$ request)");
             break;
           case MethodType::SERVER_STREAMING:
             p->Print(
                 *vars,
-                "void $lower_method_name$($input_type$ request,\n"
-                "    $Subscriber$<$output_type$> responseSubscriber)");
+                "$Flowable$<$output_type$> $lower_method_name$($input_type$ request)");
             break;
           case MethodType::CLIENT_STREAMING:
             p->Print(
                 *vars,
-                "$Subscriber$<$input_type$> $lower_method_name$(\n"
-                "    $SingleObserver$<$output_type$> responseObserver)");
+                "$Single$<$output_type$> $lower_method_name$(\n"
+                "    $Flowable$<$input_type$> requests)");
             break;
           case MethodType::BIDI_STREAMING:
             p->Print(
                 *vars,
-                "$Subscriber$<$input_type$> $lower_method_name$(\n"
-                "    $Subscriber$<$output_type$> responseSubscriber)");
+                "$Flowable$<$output_type$> $lower_method_name$(\n"
+                "    $Flowable$<$input_type$> requests)");
             break;
         }
         break;
@@ -663,22 +661,22 @@ static void PrintStub(
             case MethodType::UNARY:
               p->Print(
                   *vars,
-                  "unimplementedUnaryCall($method_field_name$, responseObserver);\n");
+                  "return ServerCallsRx.unimplementedUnaryCall($method_field_name$);\n");
               break;
             case MethodType::SERVER_STREAMING:
               p->Print(
                   *vars,
-                  "unimplementedServerStreamingCall($method_field_name$, responseSubscriber);\n");
+                  "return ServerCallsRx.unimplementedStreamingCall($method_field_name$);\n");
               break;
             case MethodType::CLIENT_STREAMING:
               p->Print(
                   *vars,
-                  "return unimplementedClientStreamingCall($method_field_name$, responseObserver);\n");
+                  "return ServerCallsRx.unimplementedUnaryCall($method_field_name$);\n");
               break;
             case MethodType::BIDI_STREAMING:
               p->Print(
                   *vars,
-                  "return unimplementedBidiStreamingCall($method_field_name$, responseSubscriber);\n");
+                  "return ServerCallsRx.unimplementedStreamingCall($method_field_name$);\n");
               break;
           }
           if (client_streaming) {
@@ -695,26 +693,25 @@ static void PrintStub(
         case ASYNC_CALL:
           switch(method_type) {
             case MethodType::UNARY:
-              (*vars)["calls_method"] = "rxUnaryCall";
-              (*vars)["params"] = "request, responseObserver";
+              (*vars)["calls_method"] = "ClientCallsRx.unaryCall";
+              (*vars)["params"] = "request";
               break;
             case MethodType::SERVER_STREAMING:
-              (*vars)["calls_method"] = "rxServerStreamingCall";
-              (*vars)["params"] = "request, responseSubscriber";
+              (*vars)["calls_method"] = "ClientCallsRx.serverStreamingCall";
+              (*vars)["params"] = "request";
               break;
             case MethodType::CLIENT_STREAMING:
-              (*vars)["calls_method"] = "rxClientStreamingCall";
-              (*vars)["params"] = "responseObserver";
+              (*vars)["calls_method"] = "ClientCallsRx.clientStreamingCall";
+              (*vars)["params"] = "requests";
               break;
             case MethodType::BIDI_STREAMING:
-              (*vars)["calls_method"] = "rxBidiStreamingCall";
-              (*vars)["params"] = "responseSubscriber";
+              (*vars)["calls_method"] = "ClientCallsRx.bidiStreamingCall";
+              (*vars)["params"] = "requests";
               break;
           }
-          (*vars)["last_line_prefix"] = client_streaming ? "return " : "";
           p->Print(
               *vars,
-              "$last_line_prefix$$calls_method$(\n"
+              "return $calls_method$(\n"
               "    getChannel().newCall($method_field_name$, getCallOptions()), $params$);\n");
           break;
       }
@@ -825,41 +822,37 @@ static void PrintMethodHandlerClass(const ServiceDescriptor* service,
   PrintInvokeMethod(service, vars, p, generate_nano, MethodType::UNARY,
                     "@$Override$\n"
                     "@java.lang.SuppressWarnings(\"unchecked\")\n"
-                    "public void invoke(Req request, $SingleObserver$<Resp> responseObserver) {\n"
+                    "public $Single$<Resp> unaryInvoke(Req request) {\n"
                     "  switch (methodId) {\n",
                     "case $method_id_name$:\n"
-                    "  serviceImpl.$lower_method_name$(($input_type$) request,\n"
-                    "      ($SingleObserver$<$output_type$>) responseObserver);\n"
-                    "  break;\n");
+                    "  return ($Single$<Resp>) serviceImpl.$lower_method_name$(($input_type$) request);\n");
 
   // print server_stream invoke
   PrintInvokeMethod(service, vars, p, generate_nano, MethodType::SERVER_STREAMING,
                     "@$Override$\n"
                     "@java.lang.SuppressWarnings(\"unchecked\")\n"
-                    "public void invoke(Req request, $Subscriber$<Resp> responseSubscriber) {\n"
+                    "public $Flowable$<Resp> serverStreamingInvoke(Req request) {\n"
                     "  switch (methodId) {\n",
                     "case $method_id_name$:\n"
-                    "  serviceImpl.$lower_method_name$(($input_type$) request,\n"
-                    "      ($Subscriber$<$output_type$>) responseSubscriber);\n"
-                    "  break;\n");
+                    "  return ($Flowable$<Resp>) serviceImpl.$lower_method_name$(($input_type$) request);\n");
 
   // print client_stream invoke
   PrintInvokeMethod(service, vars, p, generate_nano, MethodType::CLIENT_STREAMING,
                     "@$Override$\n"
                     "@java.lang.SuppressWarnings(\"unchecked\")\n"
-                    "public $Subscriber$<Req> invoke($SingleObserver$<Resp> responseObserver) {\n"
+                    "public $Single$<Resp> clientStreamingInvoke($Flowable$<Req> requests) {\n"
                     "  switch (methodId) {\n",
                     "case $method_id_name$:\n"
-                    "  return ($Subscriber$<Req>) serviceImpl.$lower_method_name$(($SingleObserver$<$output_type$>) responseObserver);\n");
+                    "  return ($Single$<Resp>) serviceImpl.$lower_method_name$(($Flowable$<$input_type$>) requests);\n");
 
   // print bidi_stream invoke
   PrintInvokeMethod(service, vars, p, generate_nano, MethodType::BIDI_STREAMING,
                     "@$Override$\n"
                     "@java.lang.SuppressWarnings(\"unchecked\")\n"
-                    "public $Subscriber$<Req> invoke($Subscriber$<Resp> responseSubscriber) {\n"
+                    "public $Flowable$<Resp> bidiStreamingInvoke($Flowable$<Req> requests) {\n"
                     "  switch (methodId) {\n",
                     "case $method_id_name$:\n"
-                    "  return ($Subscriber$<Req>) serviceImpl.$lower_method_name$(($Subscriber$<$output_type$>) responseSubscriber);\n");
+                    "  return ($Flowable$<Resp>) serviceImpl.$lower_method_name$(($Flowable$<$input_type$>) requests);\n");
 
 
   p->Outdent();
@@ -967,15 +960,15 @@ static void PrintBindServiceMethodBody(const ServiceDescriptor* service,
     bool server_streaming = method->server_streaming();
     if (client_streaming) {
       if (server_streaming) {
-        (*vars)["calls_method"] = "rxBidiStreamingCall";
+        (*vars)["calls_method"] = "ServerCallsRx.bidiStreamingCall";
       } else {
-        (*vars)["calls_method"] = "rxClientStreamingCall";
+        (*vars)["calls_method"] = "ServerCallsRx.clientStreamingCall";
       }
     } else {
       if (server_streaming) {
-        (*vars)["calls_method"] = "rxServerStreamingCall";
+        (*vars)["calls_method"] = "ServerCallsRx.serverStreamingCall";
       } else {
-        (*vars)["calls_method"] = "rxUnaryCall";
+        (*vars)["calls_method"] = "ServerCallsRx.unaryCall";
       }
     }
     p->Print(*vars, ".addMethod(\n");
@@ -1080,18 +1073,8 @@ static void PrintService(const ServiceDescriptor* service,
 void PrintImports(Printer* p, bool generate_nano) {
   p->Print(
       "import static io.grpc.MethodDescriptor.generateFullMethodName;\n"
-      "import static io.grpc.rx.stub.ClientCallsRx.rxUnaryCall;\n"
-      "import static io.grpc.rx.stub.ClientCallsRx.rxServerStreamingCall;\n"
-      "import static io.grpc.rx.stub.ClientCallsRx.rxClientStreamingCall;\n"
-      "import static io.grpc.rx.stub.ClientCallsRx.rxBidiStreamingCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.rxUnaryCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.rxServerStreamingCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.rxClientStreamingCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.rxBidiStreamingCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedUnaryCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedServerStreamingCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedClientStreamingCall;\n"
-      "import static io.grpc.rx.stub.ServerCallsRx.unimplementedBidiStreamingCall;\n"
+      "import io.grpc.rx.stub.ClientCallsRx;\n"
+      "import io.grpc.rx.stub.ServerCallsRx;\n"
       "\n");
   if (generate_nano) {
     p->Print("import java.io.IOException;\n\n");
@@ -1124,8 +1107,8 @@ void GenerateService(const ServiceDescriptor* service,
   vars["MethodDescriptor"] = "io.grpc.MethodDescriptor";
   vars["NanoUtils"] = "io.grpc.protobuf.nano.NanoUtils";
   vars["StreamObserver"] = "io.grpc.stub.StreamObserver";
-  vars["SingleObserver"] = "io.reactivex.SingleObserver";
-  vars["Subscriber"] = "org.reactivestreams.Subscriber";
+  vars["Single"] = "io.reactivex.Single";
+  vars["Flowable"] = "io.reactivex.Flowable";
   vars["Iterator"] = "java.util.Iterator";
   vars["Generated"] = "javax.annotation.Generated";
   vars["ListenableFuture"] =

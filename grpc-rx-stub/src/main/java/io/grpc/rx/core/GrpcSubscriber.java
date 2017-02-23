@@ -1,7 +1,8 @@
 package io.grpc.rx.core;
 
 /**
- * A subscriber sends messages to GRPC
+ * A subscriber takes messages and sends them to GRPC.
+ * The interface is general so it can be used by ClientCall and ServerCall.
  */
 public abstract class GrpcSubscriber<T> extends AutoSubscriber<T> {
 
@@ -10,12 +11,12 @@ public abstract class GrpcSubscriber<T> extends AutoSubscriber<T> {
     sendMessage(req);
   }
 
-  @Override
-  protected void requestMore() {
-    if (isReady()) {
-      super.requestMore();
-    }
-  }
+//  @Override
+//  protected void requestMore() {
+//    if (isReady()) {
+//      super.requestMore();
+//    }
+//  }
 
   @Override
   public void onError(Throwable t) {
@@ -27,16 +28,22 @@ public abstract class GrpcSubscriber<T> extends AutoSubscriber<T> {
     complete();
   }
 
+  // Call this in ClientCall.Listener.onReady / ServerCall.Listener.onReady
   public void ready() {
     requestMore();
   }
 
-  // to be implemented by GRPC
+  // To be implemented by GRPC, delegate to ClientCall.isReady() / ServerCall.isReady()
   protected abstract boolean isReady();
 
+  // To be implemented by GRPC, delegate to ClientCall.sendMessage() / ServerCall.sendMessage()
   protected abstract void sendMessage(T req);
 
+  // To be implemented by GRPC, delegate to ClientCall.cancel() / ServerCall.cancel()
   protected abstract void error(Throwable t);
 
+  // To be implemented by GRPC
+  // For ClientCall requests, map to ClientCall.halfClose()
+  // For ServerCall responses, map to ServerCall.close()
   protected abstract void complete();
 }

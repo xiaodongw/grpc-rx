@@ -35,8 +35,13 @@ subprojects {
   group = "io.atomos"
   version = "0.1.0-SNAPSHOT" // CURRENT_GRPC_VERSION
 
-  sourceCompatibility = 1.6
-  targetCompatibility = 1.6
+  compileJava {
+    sourceCompatibility = 1.7
+  }
+
+  compileTestJava {
+    sourceCompatibility = 1.8
+  }
 
   repositories {
     mavenCentral()

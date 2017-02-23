@@ -1,8 +1,8 @@
 package io.grpc.rx;
 
 import io.grpc.rx.EchoGrpcRx.EchoImplBase;
-import io.reactivex.SingleObserver;
-import org.reactivestreams.Subscriber;
+import io.reactivex.Flowable;
+import io.reactivex.Single;
 
 import static io.grpc.rx.EchoService.*;
 
@@ -14,22 +14,22 @@ public class EchoProxyImpl extends EchoImplBase {
   }
 
   @Override
-  public void unary(EchoReq request, SingleObserver<EchoResp> responseObserver) {
-    stub.unary(request, responseObserver);
+  public Single<EchoResp> unary(EchoReq request) {
+    return stub.unary(request);
   }
 
   @Override
-  public Subscriber<EchoReq> clientStreaming(SingleObserver<EchoCountResp> responseObserver) {
-    return stub.clientStreaming(responseObserver);
+  public Flowable<EchoResp> serverStreaming(EchoCountReq request) {
+    return stub.serverStreaming(request);
   }
 
   @Override
-  public void serverStreaming(EchoCountReq request, Subscriber<EchoResp> responseSubscriber) {
-    stub.serverStreaming(request, responseSubscriber);
+  public Single<EchoCountResp> clientStreaming(Flowable<EchoReq> requests) {
+    return stub.clientStreaming(requests);
   }
 
   @Override
-  public Subscriber<EchoReq> bidiStreaming(Subscriber<EchoResp> responseSubscriber) {
-    return stub.bidiStreaming(responseSubscriber);
+  public Flowable<EchoResp> bidiStreaming(Flowable<EchoReq> requests) {
+    return stub.bidiStreaming(requests);
   }
 }

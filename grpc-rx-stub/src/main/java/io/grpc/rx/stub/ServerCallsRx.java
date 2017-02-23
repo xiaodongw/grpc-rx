@@ -1,8 +1,12 @@
 package io.grpc.rx.stub;
 
 import io.grpc.*;
+import io.grpc.rx.core.GrpcHelpers;
+import io.reactivex.Flowable;
+import io.reactivex.Single;
 import io.reactivex.SingleObserver;
 import io.reactivex.disposables.Disposable;
+import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
@@ -27,7 +31,7 @@ public final class ServerCallsRx {
    *
    * @param method an adaptor to the actual method on the service implementation.
    */
-  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxUnaryCall(
+  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> unaryCall(
       final UnaryMethod<ReqT, RespT> method) {
     return new UnaryServerCallHandler<ReqT, RespT>(method);
   }
@@ -37,7 +41,7 @@ public final class ServerCallsRx {
    *
    * @param method an adaptor to the actual method on the service implementation.
    */
-  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxServerStreamingCall(
+  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> serverStreamingCall(
       final ServerStreamingMethod<ReqT, RespT> method) {
     return new ServerStreamingServerCallHandler<ReqT, RespT>(method);
   }
@@ -47,12 +51,12 @@ public final class ServerCallsRx {
    *
    * @param method an adaptor to the actual method on the service implementation.
    */
-  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxClientStreamingCall(
+  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> clientStreamingCall(
       final ClientStreamingMethod<ReqT, RespT> method) {
     return new ClientStreamingServerCallHandler<ReqT, RespT>(method);
   }
 
-  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> rxBidiStreamingCall(
+  public static <ReqT, RespT> ServerCallHandler<ReqT, RespT> bidiStreamingCall(
       final BidiStreamingMethod<ReqT, RespT> method) {
     return new BidiStreamingServerCallHandler<ReqT, RespT>(method);
   }
@@ -82,7 +86,12 @@ public final class ServerCallsRx {
 
     @Override
     public void onError(Throwable e) {
-      call.close(Status.fromThrowable(e), new Metadata());
+      try {
+        // todo the call may be already closed
+        call.close(Status.fromThrowable(e).withDescription(e.getMessage()), new Metadata());
+      } catch (Throwable t) {
+        // supress error
+      }
     }
   }
 
@@ -123,7 +132,7 @@ public final class ServerCallsRx {
     @Override
     public void onError(Throwable t) {
       logger.trace("onError: t={}", t);
-      call.close(Status.fromThrowable(t), new Metadata());
+      call.close(Status.fromThrowable(t).withDescription(t.getMessage()), new Metadata());
     }
 
     @Override
@@ -202,53 +211,36 @@ public final class ServerCallsRx {
   }
 
   /**
-   * Streaming request listener, dispatches the request messages from GRPC to a [Subscriber]
+   * Streaming request listener, dispatches the request messages from GRPC as a [Publisher].
    *
    * @param <ReqT>
    */
-  private static class StreamRequestListener<ReqT> extends ServerCall.Listener<ReqT> {
+  private static class RequestPublisher<ReqT> extends ServerCall.Listener<ReqT> implements Publisher<ReqT> {
     private ServerCall<ReqT, ?> call;
-    private Subscriber<ReqT> requestSubscriber;
+    private Subscriber<? super ReqT> subscriber;
     private Subscription requestSubscription;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public StreamRequestListener(final ServerCall<ReqT, ?> call, Subscriber<ReqT> requestSubscriber) {
+    public RequestPublisher(final ServerCall<ReqT, ?> call) {
       this.call = call;
-      this.requestSubscriber = requestSubscriber;
-
-      requestSubscription = new Subscription() {
-        @Override
-        public void request(long n) {
-          logger.trace("subscription.requestMore, n={}", n);
-          call.request((int) n);
-        }
-
-        @Override
-        public void cancel() {
-          logger.trace("subscription.cancel");
-          call.close(Status.CANCELLED, new Metadata());
-        }
-      };
-      requestSubscriber.onSubscribe(requestSubscription);
     }
-
 
     @Override
     public void onMessage(ReqT message) {
       logger.trace("onMessage: message={}", message);
-      requestSubscriber.onNext(message);
+      subscriber.onNext(message);
     }
 
     @Override
     public void onHalfClose() {
       logger.trace("onHalfClose");
-      requestSubscriber.onComplete();
+      subscriber.onComplete();
     }
 
     @Override
     public void onCancel() {
       logger.trace("onCancel");
-      requestSubscriber.onError(new CancellationException("cancelled from grpc"));
+      subscriber.onError(new CancellationException("cancelled from grpc"));
     }
 
     @Override
@@ -259,6 +251,29 @@ public final class ServerCallsRx {
     @Override
     public void onReady() {
 
+    }
+
+    @Override
+    public void subscribe(Subscriber<? super ReqT> s) {
+      this.subscriber = s;
+
+      requestSubscription = new Subscription() {
+        @Override
+        public void request(long n) {
+          int fixed = GrpcHelpers.fixRequestNum(n);
+          logger.trace("subscription.request, n={}", fixed);
+          call.request(fixed);
+        }
+
+        @Override
+        public void cancel() {
+          logger.trace("subscription.cancel");
+
+          // todo cannot tell cancelled by excepting or initiated
+          call.close(Status.CANCELLED.withDescription("Subscripton cancelled"), new Metadata());
+        }
+      };
+      subscriber.onSubscribe(requestSubscription);
     }
   }
 
@@ -282,7 +297,8 @@ public final class ServerCallsRx {
       return new SingleRequestListener<ReqT>(call) {
         @Override
         protected void invoke(ReqT request) {
-          method.invoke(request, responseObserver);
+          method.unaryInvoke(request)
+              .subscribe(responseObserver);
         }
       };
     }
@@ -308,7 +324,8 @@ public final class ServerCallsRx {
       return new SingleRequestListener<ReqT>(call) {
         @Override
         protected void invoke(ReqT request) {
-          method.invoke(request, responseSubscriber);
+          method.serverStreamingInvoke(request)
+              .subscribe(responseSubscriber);
         }
 
         @Override
@@ -335,8 +352,12 @@ public final class ServerCallsRx {
     @Override
     public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> call, Metadata headers) {
       SingleObserver<RespT> responseObserver = new ResponseObserver<RespT>(call);
-      Subscriber<ReqT> requestSubscriber = method.invoke(responseObserver);
-      return new StreamRequestListener<ReqT>(call, requestSubscriber);
+      RequestPublisher<ReqT> requestPublisher = new RequestPublisher<ReqT>(call);
+
+      method.clientStreamingInvoke(Flowable.fromPublisher(requestPublisher))
+          .subscribe(responseObserver);
+
+      return requestPublisher;
     }
   }
 
@@ -356,78 +377,62 @@ public final class ServerCallsRx {
     @Override
     public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> call, Metadata headers) {
       final ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call);
-      Subscriber<ReqT> requestSubscriber = method.invoke(responseSubscriber);
-      return new StreamRequestListener<ReqT>(call, requestSubscriber) {
+      RequestPublisher<ReqT> requestPublisher = new RequestPublisher<ReqT>(call) {
         @Override
         public void onReady() {
+          // trigger the flow, which starts asking for response, which then triggers asking for requests
           responseSubscriber.askResponses();
         }
       };
+
+      method.bidiStreamingInvoke(Flowable.fromPublisher(requestPublisher))
+          .subscribe(responseSubscriber);
+
+      return requestPublisher;
     }
   }
 
   /**
    * Adaptor to a unary call method.
    */
-  public static interface UnaryMethod<ReqT, RespT> {
-    void invoke(ReqT request, SingleObserver<RespT> responseObserver);
+  public interface UnaryMethod<ReqT, RespT> {
+    Single<RespT> unaryInvoke(ReqT request);
   }
 
   /**
    * Adaptor to a server streaming method.
    */
-  public static interface ServerStreamingMethod<ReqT, RespT> {
-    void invoke(ReqT request, Subscriber<RespT> resposneSubscriber);
+  public interface ServerStreamingMethod<ReqT, RespT> {
+    Flowable<RespT> serverStreamingInvoke(ReqT request);
   }
 
   /**
    * Adaptor to a client streaming method.
    */
-  public static interface ClientStreamingMethod<ReqT, RespT> {
-    Subscriber<ReqT> invoke(SingleObserver<RespT> responseObserver);
+  public interface ClientStreamingMethod<ReqT, RespT> {
+    Single<RespT> clientStreamingInvoke(Flowable<ReqT> requests);
   }
 
   /**
    * Adaptor to a bi-directional streaming method.
    */
-  public static interface BidiStreamingMethod<ReqT, RespT> {
-    Subscriber<ReqT> invoke(Subscriber<RespT> resposneSubscriber);
+  public interface BidiStreamingMethod<ReqT, RespT> {
+    Flowable<RespT> bidiStreamingInvoke(Flowable<ReqT> requests);
   }
 
-  public static <T> void unimplementedUnaryCall(
-      MethodDescriptor<?, ?> methodDescriptor,
-      SingleObserver<T> responseObserver) {
+  public static <T> Single<T> unimplementedUnaryCall(
+      MethodDescriptor<?, ?> methodDescriptor) {
     checkNotNull(methodDescriptor);
-    checkNotNull(responseObserver);
-    responseObserver.onError(Status.UNIMPLEMENTED
-        .withDescription(String.format("Method {} is unimplemented",
-            methodDescriptor.getFullMethodName()))
-        .asException());
+    return Single.error(Status.UNIMPLEMENTED
+        .withDescription(String.format("Method %s is unimplemented", methodDescriptor.getFullMethodName()))
+        .asRuntimeException());
   }
 
-  public static <T> void unimplementedServerStreamingCall(
-      MethodDescriptor<?, ?> methodDescriptor,
-      Subscriber<T> responseSubscriber) {
+  public static <T> Flowable<T> unimplementedStreamingCall(MethodDescriptor<?, ?> methodDescriptor) {
     checkNotNull(methodDescriptor);
-    checkNotNull(responseSubscriber);
-    responseSubscriber.onError(Status.UNIMPLEMENTED
-        .withDescription(String.format("Method {} is unimplemented",
-            methodDescriptor.getFullMethodName()))
-        .asException());
-  }
-
-  public static <REQ, RESP> Subscriber<REQ> unimplementedClientStreamingCall(
-      MethodDescriptor<?, ?> methodDescriptor,
-      SingleObserver<RESP> responseObserver) {
-    unimplementedUnaryCall(methodDescriptor, responseObserver);
-    return new NoopSubscriber<REQ>();
-  }
-
-  public static <REQ, RESP> Subscriber<REQ> unimplementedBidiStreamingCall(
-      MethodDescriptor<?, ?> methodDescriptor,
-      Subscriber<RESP> responseSubscriber) {
-    unimplementedServerStreamingCall(methodDescriptor, responseSubscriber);
-    return new NoopSubscriber<REQ>();
+    return Flowable.error(Status.UNIMPLEMENTED
+        .withDescription(String.format("Method %s is unimplemented", methodDescriptor.getFullMethodName()))
+        .asRuntimeException());
   }
 
   static class NoopSubscriber<V> implements Subscriber<V> {

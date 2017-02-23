@@ -7,7 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A publisher receives message from GRPC, then publishes them to the subscriber
+ * A publisher receives message from GRPC.
+ * The interface is general so it can be used by ClientCall and ServerCall.
  */
 public abstract class GrpcPublisher<T> implements Publisher<T> {
   private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -23,9 +24,10 @@ public abstract class GrpcPublisher<T> implements Publisher<T> {
     Subscription subscription = new Subscription() {
       @Override
       public void request(long n) {
-        logger.trace("subscription.requestMore: n={}", n);
-        // todo handle conversion overflow
-        requestMore(n);
+        int fixed = GrpcHelpers.fixRequestNum(n);
+        logger.trace("subscription.requestMore: n={}", fixed);
+
+        requestMore(fixed);
       }
 
       @Override
