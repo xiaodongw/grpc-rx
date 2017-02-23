@@ -1,18 +1,8 @@
 package io.grpc.testing.integration;
 
 import static io.grpc.MethodDescriptor.generateFullMethodName;
-import static io.grpc.rx.stub.ClientCallsRx.rxUnaryCall;
-import static io.grpc.rx.stub.ClientCallsRx.rxServerStreamingCall;
-import static io.grpc.rx.stub.ClientCallsRx.rxClientStreamingCall;
-import static io.grpc.rx.stub.ClientCallsRx.rxBidiStreamingCall;
-import static io.grpc.rx.stub.ServerCallsRx.rxUnaryCall;
-import static io.grpc.rx.stub.ServerCallsRx.rxServerStreamingCall;
-import static io.grpc.rx.stub.ServerCallsRx.rxClientStreamingCall;
-import static io.grpc.rx.stub.ServerCallsRx.rxBidiStreamingCall;
-import static io.grpc.rx.stub.ServerCallsRx.unimplementedUnaryCall;
-import static io.grpc.rx.stub.ServerCallsRx.unimplementedServerStreamingCall;
-import static io.grpc.rx.stub.ServerCallsRx.unimplementedClientStreamingCall;
-import static io.grpc.rx.stub.ServerCallsRx.unimplementedBidiStreamingCall;
+import io.grpc.rx.stub.ClientCallsRx;
+import io.grpc.rx.stub.ServerCallsRx;
 
 /**
  * <pre>
@@ -95,9 +85,8 @@ public class TestServiceGrpcRx {
      * The server returns the client payload as-is.
      * </pre>
      */
-    public void unaryCall(io.grpc.testing.integration.Test.SimpleRequest request,
-        io.reactivex.SingleObserver<io.grpc.testing.integration.Test.SimpleResponse> responseObserver) {
-      unimplementedUnaryCall(METHOD_UNARY_CALL, responseObserver);
+    public io.reactivex.Single<io.grpc.testing.integration.Test.SimpleResponse> unaryCall(io.grpc.testing.integration.Test.SimpleRequest request) {
+      return ServerCallsRx.unimplementedUnaryCall(METHOD_UNARY_CALL);
     }
 
     /**
@@ -106,9 +95,8 @@ public class TestServiceGrpcRx {
      * The server returns the payload with client desired type and sizes.
      * </pre>
      */
-    public void streamingOutputCall(io.grpc.testing.integration.Test.StreamingOutputCallRequest request,
-        org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse> responseSubscriber) {
-      unimplementedServerStreamingCall(METHOD_STREAMING_OUTPUT_CALL, responseSubscriber);
+    public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> streamingOutputCall(io.grpc.testing.integration.Test.StreamingOutputCallRequest request) {
+      return ServerCallsRx.unimplementedStreamingCall(METHOD_STREAMING_OUTPUT_CALL);
     }
 
     /**
@@ -117,9 +105,9 @@ public class TestServiceGrpcRx {
      * The server returns the aggregated size of client payload as the result.
      * </pre>
      */
-    public org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingInputCallRequest> streamingInputCall(
-        io.reactivex.SingleObserver<io.grpc.testing.integration.Test.StreamingInputCallResponse> responseObserver) {
-      return unimplementedClientStreamingCall(METHOD_STREAMING_INPUT_CALL, responseObserver);
+    public io.reactivex.Single<io.grpc.testing.integration.Test.StreamingInputCallResponse> streamingInputCall(
+        io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingInputCallRequest> requests) {
+      return ServerCallsRx.unimplementedUnaryCall(METHOD_STREAMING_INPUT_CALL);
     }
 
     /**
@@ -129,9 +117,9 @@ public class TestServiceGrpcRx {
      * demonstrates the idea of full bidirectionality.
      * </pre>
      */
-    public org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallRequest> fullBidiCall(
-        org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse> responseSubscriber) {
-      return unimplementedBidiStreamingCall(METHOD_FULL_BIDI_CALL, responseSubscriber);
+    public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> fullBidiCall(
+        io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest> requests) {
+      return ServerCallsRx.unimplementedStreamingCall(METHOD_FULL_BIDI_CALL);
     }
 
     /**
@@ -142,44 +130,44 @@ public class TestServiceGrpcRx {
      * first requestMore.
      * </pre>
      */
-    public org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallRequest> halfBidiCall(
-        org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse> responseSubscriber) {
-      return unimplementedBidiStreamingCall(METHOD_HALF_BIDI_CALL, responseSubscriber);
+    public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> halfBidiCall(
+        io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest> requests) {
+      return ServerCallsRx.unimplementedStreamingCall(METHOD_HALF_BIDI_CALL);
     }
 
     @java.lang.Override public io.grpc.ServerServiceDefinition bindService() {
       return io.grpc.ServerServiceDefinition.builder(getServiceDescriptor())
           .addMethod(
             METHOD_UNARY_CALL,
-            rxUnaryCall(
+            ServerCallsRx.unaryCall(
               new MethodHandlers<
                 io.grpc.testing.integration.Test.SimpleRequest,
                 io.grpc.testing.integration.Test.SimpleResponse>(
                   this, METHODID_UNARY_CALL)))
           .addMethod(
             METHOD_STREAMING_OUTPUT_CALL,
-            rxServerStreamingCall(
+            ServerCallsRx.serverStreamingCall(
               new MethodHandlers<
                 io.grpc.testing.integration.Test.StreamingOutputCallRequest,
                 io.grpc.testing.integration.Test.StreamingOutputCallResponse>(
                   this, METHODID_STREAMING_OUTPUT_CALL)))
           .addMethod(
             METHOD_STREAMING_INPUT_CALL,
-            rxClientStreamingCall(
+            ServerCallsRx.clientStreamingCall(
               new MethodHandlers<
                 io.grpc.testing.integration.Test.StreamingInputCallRequest,
                 io.grpc.testing.integration.Test.StreamingInputCallResponse>(
                   this, METHODID_STREAMING_INPUT_CALL)))
           .addMethod(
             METHOD_FULL_BIDI_CALL,
-            rxBidiStreamingCall(
+            ServerCallsRx.bidiStreamingCall(
               new MethodHandlers<
                 io.grpc.testing.integration.Test.StreamingOutputCallRequest,
                 io.grpc.testing.integration.Test.StreamingOutputCallResponse>(
                   this, METHODID_FULL_BIDI_CALL)))
           .addMethod(
             METHOD_HALF_BIDI_CALL,
-            rxBidiStreamingCall(
+            ServerCallsRx.bidiStreamingCall(
               new MethodHandlers<
                 io.grpc.testing.integration.Test.StreamingOutputCallRequest,
                 io.grpc.testing.integration.Test.StreamingOutputCallResponse>(
@@ -215,10 +203,9 @@ public class TestServiceGrpcRx {
      * The server returns the client payload as-is.
      * </pre>
      */
-    public void unaryCall(io.grpc.testing.integration.Test.SimpleRequest request,
-        io.reactivex.SingleObserver<io.grpc.testing.integration.Test.SimpleResponse> responseObserver) {
-      rxUnaryCall(
-          getChannel().newCall(METHOD_UNARY_CALL, getCallOptions()), request, responseObserver);
+    public io.reactivex.Single<io.grpc.testing.integration.Test.SimpleResponse> unaryCall(io.grpc.testing.integration.Test.SimpleRequest request) {
+      return ClientCallsRx.unaryCall(
+          getChannel().newCall(METHOD_UNARY_CALL, getCallOptions()), request);
     }
 
     /**
@@ -227,10 +214,9 @@ public class TestServiceGrpcRx {
      * The server returns the payload with client desired type and sizes.
      * </pre>
      */
-    public void streamingOutputCall(io.grpc.testing.integration.Test.StreamingOutputCallRequest request,
-        org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse> responseSubscriber) {
-      rxServerStreamingCall(
-          getChannel().newCall(METHOD_STREAMING_OUTPUT_CALL, getCallOptions()), request, responseSubscriber);
+    public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> streamingOutputCall(io.grpc.testing.integration.Test.StreamingOutputCallRequest request) {
+      return ClientCallsRx.serverStreamingCall(
+          getChannel().newCall(METHOD_STREAMING_OUTPUT_CALL, getCallOptions()), request);
     }
 
     /**
@@ -239,10 +225,10 @@ public class TestServiceGrpcRx {
      * The server returns the aggregated size of client payload as the result.
      * </pre>
      */
-    public org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingInputCallRequest> streamingInputCall(
-        io.reactivex.SingleObserver<io.grpc.testing.integration.Test.StreamingInputCallResponse> responseObserver) {
-      return rxClientStreamingCall(
-          getChannel().newCall(METHOD_STREAMING_INPUT_CALL, getCallOptions()), responseObserver);
+    public io.reactivex.Single<io.grpc.testing.integration.Test.StreamingInputCallResponse> streamingInputCall(
+        io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingInputCallRequest> requests) {
+      return ClientCallsRx.clientStreamingCall(
+          getChannel().newCall(METHOD_STREAMING_INPUT_CALL, getCallOptions()), requests);
     }
 
     /**
@@ -252,10 +238,10 @@ public class TestServiceGrpcRx {
      * demonstrates the idea of full bidirectionality.
      * </pre>
      */
-    public org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallRequest> fullBidiCall(
-        org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse> responseSubscriber) {
-      return rxBidiStreamingCall(
-          getChannel().newCall(METHOD_FULL_BIDI_CALL, getCallOptions()), responseSubscriber);
+    public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> fullBidiCall(
+        io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest> requests) {
+      return ClientCallsRx.bidiStreamingCall(
+          getChannel().newCall(METHOD_FULL_BIDI_CALL, getCallOptions()), requests);
     }
 
     /**
@@ -266,10 +252,10 @@ public class TestServiceGrpcRx {
      * first requestMore.
      * </pre>
      */
-    public org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallRequest> halfBidiCall(
-        org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse> responseSubscriber) {
-      return rxBidiStreamingCall(
-          getChannel().newCall(METHOD_HALF_BIDI_CALL, getCallOptions()), responseSubscriber);
+    public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> halfBidiCall(
+        io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest> requests) {
+      return ClientCallsRx.bidiStreamingCall(
+          getChannel().newCall(METHOD_HALF_BIDI_CALL, getCallOptions()), requests);
     }
   }
 
@@ -294,12 +280,10 @@ public class TestServiceGrpcRx {
 
     @java.lang.Override
     @java.lang.SuppressWarnings("unchecked")
-    public void invoke(Req request, io.reactivex.SingleObserver<Resp> responseObserver) {
+    public io.reactivex.Single<Resp> unaryInvoke(Req request) {
       switch (methodId) {
         case METHODID_UNARY_CALL:
-          serviceImpl.unaryCall((io.grpc.testing.integration.Test.SimpleRequest) request,
-              (io.reactivex.SingleObserver<io.grpc.testing.integration.Test.SimpleResponse>) responseObserver);
-          break;
+          return (io.reactivex.Single<Resp>) serviceImpl.unaryCall((io.grpc.testing.integration.Test.SimpleRequest) request);
         default:
           throw new AssertionError();
       }
@@ -307,12 +291,10 @@ public class TestServiceGrpcRx {
 
     @java.lang.Override
     @java.lang.SuppressWarnings("unchecked")
-    public void invoke(Req request, org.reactivestreams.Subscriber<Resp> responseSubscriber) {
+    public io.reactivex.Flowable<Resp> serverStreamingInvoke(Req request) {
       switch (methodId) {
         case METHODID_STREAMING_OUTPUT_CALL:
-          serviceImpl.streamingOutputCall((io.grpc.testing.integration.Test.StreamingOutputCallRequest) request,
-              (org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse>) responseSubscriber);
-          break;
+          return (io.reactivex.Flowable<Resp>) serviceImpl.streamingOutputCall((io.grpc.testing.integration.Test.StreamingOutputCallRequest) request);
         default:
           throw new AssertionError();
       }
@@ -320,10 +302,10 @@ public class TestServiceGrpcRx {
 
     @java.lang.Override
     @java.lang.SuppressWarnings("unchecked")
-    public org.reactivestreams.Subscriber<Req> invoke(io.reactivex.SingleObserver<Resp> responseObserver) {
+    public io.reactivex.Single<Resp> clientStreamingInvoke(io.reactivex.Flowable<Req> requests) {
       switch (methodId) {
         case METHODID_STREAMING_INPUT_CALL:
-          return (org.reactivestreams.Subscriber<Req>) serviceImpl.streamingInputCall((io.reactivex.SingleObserver<io.grpc.testing.integration.Test.StreamingInputCallResponse>) responseObserver);
+          return (io.reactivex.Single<Resp>) serviceImpl.streamingInputCall((io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingInputCallRequest>) requests);
         default:
           throw new AssertionError();
       }
@@ -331,12 +313,12 @@ public class TestServiceGrpcRx {
 
     @java.lang.Override
     @java.lang.SuppressWarnings("unchecked")
-    public org.reactivestreams.Subscriber<Req> invoke(org.reactivestreams.Subscriber<Resp> responseSubscriber) {
+    public io.reactivex.Flowable<Resp> bidiStreamingInvoke(io.reactivex.Flowable<Req> requests) {
       switch (methodId) {
         case METHODID_FULL_BIDI_CALL:
-          return (org.reactivestreams.Subscriber<Req>) serviceImpl.fullBidiCall((org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse>) responseSubscriber);
+          return (io.reactivex.Flowable<Resp>) serviceImpl.fullBidiCall((io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest>) requests);
         case METHODID_HALF_BIDI_CALL:
-          return (org.reactivestreams.Subscriber<Req>) serviceImpl.halfBidiCall((org.reactivestreams.Subscriber<io.grpc.testing.integration.Test.StreamingOutputCallResponse>) responseSubscriber);
+          return (io.reactivex.Flowable<Resp>) serviceImpl.halfBidiCall((io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest>) requests);
         default:
           throw new AssertionError();
       }

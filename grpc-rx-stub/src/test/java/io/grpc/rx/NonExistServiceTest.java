@@ -1,6 +1,5 @@
 package io.grpc.rx;
 
-import com.sun.tools.javac.comp.Flow;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyChannelBuilder;
