@@ -5,18 +5,24 @@ package io.grpc.rx.core;
  * The interface is general so it can be used by ClientCall and ServerCall.
  */
 public abstract class GrpcSubscriber<T> extends AutoSubscriber<T> {
+  public GrpcSubscriber(int lowWatermark, int highWatermark) {
+    super(lowWatermark, highWatermark);
+  }
+
+  public GrpcSubscriber() {
+  }
 
   @Override
   protected void processRequest(T req) {
     sendMessage(req);
   }
 
-//  @Override
-//  protected void requestMore() {
-//    if (isReady()) {
-//      super.requestMore();
-//    }
-//  }
+  @Override
+  protected void requestMore() {
+    if (isReady()) {
+      super.requestMore();
+    }
+  }
 
   @Override
   public void onError(Throwable t) {

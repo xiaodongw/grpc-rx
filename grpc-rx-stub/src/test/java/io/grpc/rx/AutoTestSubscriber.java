@@ -6,6 +6,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * The test subscriber with flow control
+ * @param <T>
+ */
 public class AutoTestSubscriber<T> extends TestSubscriber<T> {
   private Logger logger = LoggerFactory.getLogger(this.getClass());
 

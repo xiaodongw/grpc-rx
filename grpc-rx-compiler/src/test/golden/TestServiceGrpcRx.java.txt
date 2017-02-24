@@ -66,10 +66,17 @@ public class TestServiceGrpcRx {
           io.grpc.protobuf.ProtoUtils.marshaller(io.grpc.testing.integration.Test.StreamingOutputCallResponse.getDefaultInstance()));
 
   /**
-   * Creates a new async stub that supports all call types for the service
+   * Creates a new RX stub
    */
   public static TestServiceStub newStub(io.grpc.Channel channel) {
     return new TestServiceStub(channel);
+  }
+
+  /**
+   * Creates a new RX stub with call options
+   */
+  public static TestServiceStub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+    return new TestServiceStub(channel, callOptions);
   }
 
   /**
@@ -228,7 +235,7 @@ public class TestServiceGrpcRx {
     public io.reactivex.Single<io.grpc.testing.integration.Test.StreamingInputCallResponse> streamingInputCall(
         io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingInputCallRequest> requests) {
       return ClientCallsRx.clientStreamingCall(
-          getChannel().newCall(METHOD_STREAMING_INPUT_CALL, getCallOptions()), requests);
+          getChannel().newCall(METHOD_STREAMING_INPUT_CALL, getCallOptions()), requests, getCallOptions());
     }
 
     /**
@@ -241,7 +248,7 @@ public class TestServiceGrpcRx {
     public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> fullBidiCall(
         io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest> requests) {
       return ClientCallsRx.bidiStreamingCall(
-          getChannel().newCall(METHOD_FULL_BIDI_CALL, getCallOptions()), requests);
+          getChannel().newCall(METHOD_FULL_BIDI_CALL, getCallOptions()), requests, getCallOptions());
     }
 
     /**
@@ -255,7 +262,7 @@ public class TestServiceGrpcRx {
     public io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallResponse> halfBidiCall(
         io.reactivex.Flowable<io.grpc.testing.integration.Test.StreamingOutputCallRequest> requests) {
       return ClientCallsRx.bidiStreamingCall(
-          getChannel().newCall(METHOD_HALF_BIDI_CALL, getCallOptions()), requests);
+          getChannel().newCall(METHOD_HALF_BIDI_CALL, getCallOptions()), requests, getCallOptions());
     }
   }
 

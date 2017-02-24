@@ -2,6 +2,7 @@ package io.grpc.rx.stub;
 
 import io.grpc.*;
 import io.grpc.rx.core.GrpcHelpers;
+import io.grpc.rx.core.LogUtils;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
 import io.reactivex.SingleObserver;
@@ -108,8 +109,10 @@ public final class ServerCallsRx {
     private AtomicInteger pendingResps = new AtomicInteger();
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public ResponseSubscriber(ServerCall<?, RespT> call) {
+    public ResponseSubscriber(ServerCall<?, RespT> call, int lowWaterMark, int highWaterMark) {
       this.call = call;
+      this.lowWaterMark = lowWaterMark;
+      this.highWaterMark = highWaterMark;
     }
 
     @Override
@@ -123,7 +126,7 @@ public final class ServerCallsRx {
 
     @Override
     public void onNext(RespT message) {
-      logger.trace("onNext: message={}", message);
+      logger.trace("onNext: message={}", LogUtils.objectString(message));
       call.sendMessage(message);
       pendingResps.decrementAndGet();
       askResponses();
@@ -227,7 +230,7 @@ public final class ServerCallsRx {
 
     @Override
     public void onMessage(ReqT message) {
-      logger.trace("onMessage: message={}", message);
+      logger.trace("onMessage: message={}", LogUtils.objectString(message));
       subscriber.onNext(message);
     }
 
@@ -319,7 +322,8 @@ public final class ServerCallsRx {
 
     @Override
     public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> call, Metadata headers) {
-      final ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call);
+      // todo implement server side watermark settings per method
+      final ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call, 4, 32);
 
       return new SingleRequestListener<ReqT>(call) {
         @Override
@@ -376,7 +380,8 @@ public final class ServerCallsRx {
 
     @Override
     public ServerCall.Listener<ReqT> startCall(ServerCall<ReqT, RespT> call, Metadata headers) {
-      final ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call);
+      // todo implement server side watermark settings per method
+      final ResponseSubscriber<RespT> responseSubscriber = new ResponseSubscriber<RespT>(call, 4, 32);
       RequestPublisher<ReqT> requestPublisher = new RequestPublisher<ReqT>(call) {
         @Override
         public void onReady() {
@@ -433,23 +438,5 @@ public final class ServerCallsRx {
     return Flowable.error(Status.UNIMPLEMENTED
         .withDescription(String.format("Method %s is unimplemented", methodDescriptor.getFullMethodName()))
         .asRuntimeException());
-  }
-
-  static class NoopSubscriber<V> implements Subscriber<V> {
-    @Override
-    public void onSubscribe(Subscription s) {
-    }
-
-    @Override
-    public void onNext(V v) {
-    }
-
-    @Override
-    public void onError(Throwable t) {
-    }
-
-    @Override
-    public void onComplete() {
-    }
   }
 }

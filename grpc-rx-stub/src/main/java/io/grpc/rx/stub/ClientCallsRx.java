@@ -1,11 +1,13 @@
 package io.grpc.rx.stub;
 
+import io.grpc.CallOptions;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.rx.core.DelegateClientCallListener;
 import io.grpc.rx.core.GrpcPublisher;
 import io.grpc.rx.core.GrpcSubscriber;
+import io.grpc.rx.core.LogUtils;
 import io.grpc.stub.StreamObserver;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
@@ -68,8 +70,9 @@ public final class ClientCallsRx {
    */
   public static <ReqT, RespT> Single<RespT> clientStreamingCall(
       ClientCall<ReqT, RespT> call,
-      Flowable<ReqT> requests) {
-    final StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
+      Flowable<ReqT> requests,
+      CallOptions options) {
+    final StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call, getLowWatermark(options), getHighWatermark(options));
     SingleResponseReceiver<RespT> responseReceiver = new SingleResponseReceiver<RespT>(call) {
       @Override
       public void startCall() {
@@ -93,8 +96,9 @@ public final class ClientCallsRx {
    */
   public static <ReqT, RespT> Flowable<RespT> bidiStreamingCall(
       ClientCall<ReqT, RespT> call,
-      Flowable<ReqT> requests) {
-    final StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call);
+      Flowable<ReqT> requests,
+      CallOptions options) {
+    final StreamRequestSender<ReqT> requestSender = new StreamRequestSender<ReqT>(call, getLowWatermark(options), getHighWatermark(options));
     StreamingResponseReceiver<RespT> responseReceiver = new StreamingResponseReceiver<RespT>(call) {
       @Override
       public void startCall() {
@@ -193,30 +197,32 @@ public final class ClientCallsRx {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ClientCall<ReqT, ?> call;
 
-    private GrpcSubscriber<ReqT> grpcSubscriber = new GrpcSubscriber<ReqT>() {
-      @Override
-      protected boolean isReady() {
-        return call.isReady();
-      }
+    private GrpcSubscriber<ReqT> grpcSubscriber;
 
-      @Override
-      protected void sendMessage(ReqT req) {
-        call.sendMessage(req);
-      }
-
-      @Override
-      protected void error(Throwable t) {
-        call.cancel("Upstream error", t);
-      }
-
-      @Override
-      protected void complete() {
-        call.halfClose();
-      }
-    };
-
-    public StreamRequestSender(ClientCall<ReqT, ?> call) {
+    public StreamRequestSender(ClientCall<ReqT, ?> call, int lowWatermark, int highWatermark) {
       this.call = call;
+
+      grpcSubscriber  = new GrpcSubscriber<ReqT>(lowWatermark, highWatermark) {
+        @Override
+        protected boolean isReady() {
+          return StreamRequestSender.this.call.isReady();
+        }
+
+        @Override
+        protected void sendMessage(ReqT req) {
+          StreamRequestSender.this.call.sendMessage(req);
+        }
+
+        @Override
+        protected void error(Throwable t) {
+          StreamRequestSender.this.call.cancel("Upstream error", t);
+        }
+
+        @Override
+        protected void complete() {
+          StreamRequestSender.this.call.halfClose();
+        }
+      };
     }
 
     public Subscriber<ReqT> subscriber() {
@@ -225,13 +231,15 @@ public final class ClientCallsRx {
 
     @Override
     public void onReady() {
-      logger.trace("onReady");
+      if (logger.isTraceEnabled()) {
+        logger.trace("onReady");
+      }
       grpcSubscriber.ready();
     }
 
     @Override
     public void startCall() {
-      grpcSubscriber.requestMore();
+      grpcSubscriber.ready();
     }
   }
 
@@ -270,7 +278,7 @@ public final class ClientCallsRx {
 
     @Override
     public void onMessage(RespT message) {
-      logger.trace("onMessage: message={}", message);
+      logger.trace("onMessage: message={}", LogUtils.objectString(message));
       grpcPublisher.message(message);
     }
 
@@ -287,5 +295,13 @@ public final class ClientCallsRx {
 
     public void startCall() {
     }
+  }
+
+  static int getLowWatermark(CallOptions options) {
+    return options.getOption(GrpcRxOptions.LOW_WATERMARK);
+  }
+
+  static int getHighWatermark(CallOptions options) {
+    return options.getOption(GrpcRxOptions.HIGH_WATERMARK);
   }
 }

@@ -702,11 +702,11 @@ static void PrintStub(
               break;
             case MethodType::CLIENT_STREAMING:
               (*vars)["calls_method"] = "ClientCallsRx.clientStreamingCall";
-              (*vars)["params"] = "requests";
+              (*vars)["params"] = "requests, getCallOptions()";
               break;
             case MethodType::BIDI_STREAMING:
               (*vars)["calls_method"] = "ClientCallsRx.bidiStreamingCall";
-              (*vars)["params"] = "requests";
+              (*vars)["params"] = "requests, getCallOptions()";
               break;
           }
           p->Print(
@@ -1027,7 +1027,7 @@ static void PrintService(const ServiceDescriptor* service,
   PrintMethodFields(service, vars, p, flavor);
 
   // TODO(nmittler): Replace with WriteDocComment once included by protobuf distro.
-  GrpcWriteDocComment(p, " Creates a new async stub that supports all call types for the service");
+  GrpcWriteDocComment(p, " Creates a new RX stub");
   p->Print(
       *vars,
       "public static $service_name$Stub newStub($Channel$ channel) {\n");
@@ -1035,6 +1035,17 @@ static void PrintService(const ServiceDescriptor* service,
   p->Print(
       *vars,
       "return new $service_name$Stub(channel);\n");
+  p->Outdent();
+  p->Print("}\n\n");
+
+  GrpcWriteDocComment(p, " Creates a new RX stub with call options");
+  p->Print(
+      *vars,
+      "public static $service_name$Stub newStub($Channel$ channel, $CallOptions$ callOptions) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "return new $service_name$Stub(channel, callOptions);\n");
   p->Outdent();
   p->Print("}\n\n");
 

@@ -2,6 +2,8 @@ package io.grpc.rx.core;
 
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -9,6 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Auto pull messages based on watermark settings.
  */
 public abstract class AutoSubscriber<T> implements Subscriber<T> {
+  static private Logger logger = LoggerFactory.getLogger(AutoSubscriber.class);
+
   private int lowWatermark = 4;
   private int highWatermark = 32;
   private AtomicInteger pending = new AtomicInteger();
@@ -30,20 +34,28 @@ public abstract class AutoSubscriber<T> implements Subscriber<T> {
   }
 
   @Override
-  public void onNext(T t) {
-    processRequest(t);
+  public void onNext(T message) {
+    if (logger.isTraceEnabled()) {
+      logger.trace("onNext message={}", LogUtils.objectString(message));
+    }
+    processRequest(message);
     pending.decrementAndGet();
+
     requestMore();
   }
 
-  public void requestMore() {
+  protected void requestMore() {
     if (subscription == null) return;
 
     int p = pending.get();
     if (p <= lowWatermark) {
       int gap = highWatermark - p;
-      subscription.request(gap);
+
+      if (logger.isTraceEnabled()) {
+        logger.trace("subscription.request gap={}", gap);
+      }
       pending.addAndGet(gap);
+      subscription.request(gap);
     }
   }
 

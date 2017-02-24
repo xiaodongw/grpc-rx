@@ -15,10 +15,17 @@ public abstract class TestBase {
 
   protected int testWaitSeconds = 10;
 
-  private ManagedChannel newChannel() {
+  protected ManagedChannel newChannel() {
     return InProcessChannelBuilder
         .forName(uniqueServerName)
         .usePlaintext(true)
+        .build();
+  }
+
+  protected Server newServer() {
+    return InProcessServerBuilder.forName(uniqueServerName)
+        .addService(newService())
+        .directExecutor()
         .build();
   }
 
@@ -30,11 +37,7 @@ public abstract class TestBase {
 
   @Before
   public void setUp() throws Exception {
-    server = InProcessServerBuilder.forName(uniqueServerName)
-        .addService(newService())
-        .directExecutor()
-        .build();
-
+    server = newServer();
     server.start();
 
     channel = newChannel();
