@@ -5,10 +5,12 @@ Please be aware this library is still in draft stage, there will be bugs, issues
 
 ## Getting started
 * Clone the repository and run:
+
     ```
     ./gradlew install
     ``` 
 * In your project, configure Gradle to use the grpc-rx compiler plugin
+
     ```groovy
     protobuf {
       protoc {
