@@ -4,6 +4,8 @@ This is a GRPC stub for RxJava2.
 Please be aware this library is still in draft stage, there will be bugs, issues, and API may change in future.
 
 ## Getting started
+Please reference [Protobuf README](https://github.com/google/protobuf/blob/master/src/README.md) to install Protobuf dev environment first.
+  
 * Clone the repository and run:
 
     ```
