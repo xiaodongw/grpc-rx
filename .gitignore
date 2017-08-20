@@ -18,3 +18,5 @@ hs_err_pid*
 build/
 cmake-build-debug/
 gen/
+
+*.iml
