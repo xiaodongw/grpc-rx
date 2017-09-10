@@ -866,8 +866,7 @@ static void PrintGetServiceDescriptorMethod(const ServiceDescriptor* service,
   (*vars)["service_name"] = service->name();
 
 
-  // wait for new GRPC release to enable this
-  /*if (flavor == ProtoFlavor::NORMAL) {
+  if (flavor == ProtoFlavor::NORMAL) {
     (*vars)["proto_descriptor_supplier"] = service->name() + "DescriptorSupplier";
     (*vars)["proto_class_name"] = google::protobuf::compiler::java::ClassName(service->file());
     p->Print(
@@ -884,54 +883,55 @@ static void PrintGetServiceDescriptorMethod(const ServiceDescriptor* service,
     p->Print(*vars, "}\n");
     p->Outdent();
     p->Print(*vars, "}\n\n");
+  }
 
-    p->Print(
-            *vars,
-            "private static $ServiceDescriptor$ serviceDescriptor;\n\n");
-
-    p->Print(
-        *vars,
-        "public static synchronized $ServiceDescriptor$ getServiceDescriptor() {\n");
-    p->Indent();
-    p->Print("if (serviceDescriptor == null) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "serviceDescriptor = new $ServiceDescriptor$(SERVICE_NAME,\n");
-    p->Indent();
-    p->Indent();
-    p->Print(
-        *vars,
-        "new $proto_descriptor_supplier$()");
-    p->Outdent();
-    p->Outdent();
-  } else {*/
-    p->Print(
+  p->Print(
       *vars,
-      "private static $ServiceDescriptor$ serviceDescriptor;\n\n");
-    p->Print(
-        *vars,
-        "public static synchronized $ServiceDescriptor$ getServiceDescriptor() {\n");
-    p->Indent();
-    p->Print("if (serviceDescriptor == null) {\n");
-    p->Indent();
-    p->Print(
-        *vars,
-        "serviceDescriptor = new $ServiceDescriptor$(SERVICE_NAME");
-  //}
+      "private static volatile $ServiceDescriptor$ serviceDescriptor;\n\n");
 
+  p->Print(
+      *vars,
+      "public static $ServiceDescriptor$ getServiceDescriptor() {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "$ServiceDescriptor$ result = serviceDescriptor;\n");
+  p->Print("if (result == null) {\n");
+  p->Indent();
+  p->Print(
+      *vars,
+      "synchronized ($service_class_name$.class) {\n");
+  p->Indent();
+  p->Print("result = serviceDescriptor;\n");
+  p->Print("if (result == null) {\n");
+  p->Indent();
+
+  p->Print(
+      *vars,
+      "serviceDescriptor = result = $ServiceDescriptor$.newBuilder(SERVICE_NAME)");
   p->Indent();
   p->Indent();
+  if (flavor == ProtoFlavor::NORMAL) {
+    p->Print(
+        *vars,
+        "\n.setSchemaDescriptor(new $proto_descriptor_supplier$())");
+  }
   for (int i = 0; i < service->method_count(); ++i) {
     const MethodDescriptor* method = service->method(i);
     (*vars)["method_field_name"] = MethodPropertiesFieldName(method);
-    p->Print(*vars, ",\n$method_field_name$");
+    p->Print(*vars, "\n.addMethod($method_field_name$)");
   }
-  p->Print(");\n");
+  p->Print("\n.build();\n");
   p->Outdent();
   p->Outdent();
+
   p->Outdent();
-  p->Print("}\n\nreturn serviceDescriptor;\n");
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Outdent();
+  p->Print("}\n");
+  p->Print("return result;\n");
   p->Outdent();
   p->Print("}\n");
 }
