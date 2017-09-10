@@ -15,7 +15,7 @@ ext {
   protocPluginBaseName = 'protoc-gen-grpc-rxjava'
   rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
 
-  grpcJavaVersion = '1.5.0'
+  grpcJavaVersion = '1.6.1'
   protobufVersion = '3.3.0'
   rxJavaVersion = '2.1.3'
 
