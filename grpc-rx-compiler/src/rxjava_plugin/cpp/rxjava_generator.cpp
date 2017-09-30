@@ -556,7 +556,7 @@ static void PrintStub(
     } else {
       p->Print(
           *vars,
-          "public static final class $stub_name$ extends $AbstractStub$<$stub_name$> {\n");
+          "public static class $stub_name$ extends $AbstractStub$<$stub_name$> {\n");
     }
   }
   p->Indent();

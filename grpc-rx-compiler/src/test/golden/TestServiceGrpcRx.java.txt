@@ -188,7 +188,7 @@ public class TestServiceGrpcRx {
    * Test service that supports all call types.
    * </pre>
    */
-  public static final class TestServiceStub extends io.grpc.stub.AbstractStub<TestServiceStub> {
+  public static class TestServiceStub extends io.grpc.stub.AbstractStub<TestServiceStub> {
     private TestServiceStub(io.grpc.Channel channel) {
       super(channel);
     }

@@ -141,7 +141,8 @@ public final class ClientCallsRx {
   private static class SingleResponseReceiver<RespT> extends ClientCall.Listener<RespT> implements StartCall {
     protected ClientCall<?, RespT> call;
     private SingleObserver<? super RespT> responseObserver;
-    private RespT response;
+    private RespT value;
+    private Throwable error;
     private SingleSource<RespT> source;
 
     public SingleSource<RespT> singleSource() {
@@ -161,35 +162,48 @@ public final class ClientCallsRx {
 
           // start call until response gets subscribed
           startCall();
+
+          if (error != null) {
+            responseObserver.onError(error);
+            error = null;
+          }
         }
       };
     }
 
-    public void onMessage(RespT value) {
-      if (this.response != null) {
+    public void onMessage(RespT v) {
+      if (value != null) {
         throw Status.INTERNAL.withDescription("More than one value received for unary call")
             .asRuntimeException();
       }
-      this.response = value;
+      value = v;
     }
 
     public void onClose(Status status, Metadata trailers) {
       if (status.isOk()) {
-        if (response == null) {
+        if (value == null) {
           // No value received so mark the future as an error
-          responseObserver.onError(
+          notifyError(
               Status.INTERNAL.withDescription("No value received for unary call")
                   .asRuntimeException(trailers));
         } else {
-          responseObserver.onSuccess(response);
+          responseObserver.onSuccess(value);
         }
       } else {
-        responseObserver.onError(status.asRuntimeException(trailers));
+        notifyError(status.asRuntimeException(trailers));
       }
     }
 
     public void startCall() {
       call.request(2);
+    }
+
+    private void notifyError(Throwable t) {
+      if (responseObserver != null) {
+        responseObserver.onError(t);
+      } else {
+        error = t;
+      }
     }
   }
 

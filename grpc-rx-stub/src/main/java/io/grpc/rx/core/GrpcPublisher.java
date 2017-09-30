@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 public abstract class GrpcPublisher<T> implements Publisher<T> {
   private Logger logger = LoggerFactory.getLogger(this.getClass());
   private Subscriber subscriber = null;
+  private Throwable error = null;
 
   @Override
   public void subscribe(Subscriber<? super T> s) {
@@ -38,6 +39,11 @@ public abstract class GrpcPublisher<T> implements Publisher<T> {
     };
 
     subscriber.onSubscribe(subscription);
+
+    // publisher already fails before subscribe, notify the subscriber
+    if (error != null) {
+      subscriber.onError(error);
+    }
   }
 
   public void message(T msg) {
@@ -49,7 +55,11 @@ public abstract class GrpcPublisher<T> implements Publisher<T> {
   }
 
   public void error(Throwable t) {
-    subscriber.onError(t);
+    if (subscriber != null) {
+      subscriber.onError(t);
+    }
+
+    error = t;
   }
 
   protected abstract void requestMore(long n);
