@@ -300,8 +300,13 @@ public final class ServerCallsRx {
       return new SingleRequestListener<ReqT>(call) {
         @Override
         protected void invoke(ReqT request) {
-          method.unaryInvoke(request)
-              .subscribe(responseObserver);
+          Single<RespT> response;
+          try {
+            response = method.unaryInvoke(request);
+          } catch (Throwable t) {
+            response = Single.error(t);
+          }
+          response.subscribe(responseObserver);
         }
       };
     }
@@ -328,8 +333,13 @@ public final class ServerCallsRx {
       return new SingleRequestListener<ReqT>(call) {
         @Override
         protected void invoke(ReqT request) {
-          method.serverStreamingInvoke(request)
-              .subscribe(responseSubscriber);
+          Flowable<RespT> response;
+          try {
+            response = method.serverStreamingInvoke(request);
+          } catch (Throwable t) {
+            response = Flowable.error(t);
+          }
+          response.subscribe(responseSubscriber);
         }
 
         @Override
@@ -358,8 +368,13 @@ public final class ServerCallsRx {
       SingleObserver<RespT> responseObserver = new ResponseObserver<RespT>(call);
       RequestPublisher<ReqT> requestPublisher = new RequestPublisher<ReqT>(call);
 
-      method.clientStreamingInvoke(Flowable.fromPublisher(requestPublisher))
-          .subscribe(responseObserver);
+      Single<RespT> response;
+      try {
+        response = method.clientStreamingInvoke(Flowable.fromPublisher(requestPublisher));
+      } catch (Throwable t) {
+        response = Single.error(t);
+      }
+      response.subscribe(responseObserver);
 
       return requestPublisher;
     }
@@ -390,8 +405,13 @@ public final class ServerCallsRx {
         }
       };
 
-      method.bidiStreamingInvoke(Flowable.fromPublisher(requestPublisher))
-          .subscribe(responseSubscriber);
+      Flowable<RespT> response;
+      try {
+        response = method.bidiStreamingInvoke(Flowable.fromPublisher(requestPublisher));
+      } catch (Throwable t) {
+        response = Flowable.error(t);
+      }
+      response.subscribe(responseSubscriber);
 
       return requestPublisher;
     }
