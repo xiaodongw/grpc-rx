@@ -9,10 +9,10 @@ dependencies {
       "io.grpc:grpc-protobuf:${grpcJavaVersion}",
       "io.grpc:grpc-stub:${grpcJavaVersion}",
       "io.reactivex.rxjava2:rxjava:${rxJavaVersion}",
-      'org.slf4j:slf4j-api:1.7.22'
+      'org.slf4j:slf4j-api:1.7.25'
 
   testCompile 'junit:junit:4.12',
-      'org.slf4j:slf4j-simple:1.7.22'
+      'org.slf4j:slf4j-simple:1.7.25'
 }
 
 protobuf {
