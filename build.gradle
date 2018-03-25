@@ -1,23 +1,16 @@
-buildscript {
-  repositories {
-    mavenCentral()
-    mavenLocal()
-  }
-  dependencies {
-    classpath 'com.google.gradle:osdetector-gradle-plugin:1.4.0'
-  }
+plugins {
+  id "com.google.osdetector" version "1.4.0"
+  id "com.github.ben-manes.versions" version "0.17.0"
 }
-
-apply plugin: "com.google.osdetector"
 
 ext {
   def exeSuffix = osdetector.os == 'windows' ? ".exe" : ""
   protocPluginBaseName = 'protoc-gen-grpc-rxjava'
   rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
 
-  grpcJavaVersion = '1.9.0'
+  grpcJavaVersion = '1.10.1'
   protobufVersion = '3.5.1'
-  rxJavaVersion = '2.1.9'
+  rxJavaVersion = '2.1.12'
 
   libs = [
       //scalaLibrary: "org.scala-lang:scala-library:${scalaVersion}"
@@ -37,10 +30,12 @@ subprojects {
 
   compileJava {
     sourceCompatibility = 1.7
+    options.deprecation = true
   }
 
   compileTestJava {
     sourceCompatibility = 1.8
+    options.deprecation = true
   }
 
   repositories {

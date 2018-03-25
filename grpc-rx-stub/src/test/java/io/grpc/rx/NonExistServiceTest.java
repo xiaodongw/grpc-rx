@@ -15,7 +15,9 @@ import java.util.concurrent.TimeUnit;
 public class NonExistServiceTest {
   private static ManagedChannel channel;
   private final EchoGrpcRx.EchoStub client;
-  protected int testWaitSeconds = 3;
+
+  // InetAddress.getAllByName() blocks, give the test more time to throw exception
+  protected int testWaitSeconds = 30;
 
   public NonExistServiceTest() {
     client = newClient();

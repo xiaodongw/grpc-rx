@@ -19,5 +19,6 @@ out/
 build/
 cmake-build-debug/
 gen/
+.gradletasknamecache
 
 *.iml
