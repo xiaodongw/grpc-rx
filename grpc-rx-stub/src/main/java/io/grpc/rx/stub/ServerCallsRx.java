@@ -86,12 +86,12 @@ public final class ServerCallsRx {
     }
 
     @Override
-    public void onError(Throwable e) {
+    public void onError(Throwable t) {
       try {
         // todo the call may be already closed
-        call.close(Status.fromThrowable(e).withDescription(e.getMessage()), new Metadata());
-      } catch (Throwable t) {
-        // supress error
+        call.close(getStatus(t), new Metadata());
+      } catch (Throwable e) {
+        // suppress error
       }
     }
   }
@@ -135,7 +135,7 @@ public final class ServerCallsRx {
     @Override
     public void onError(Throwable t) {
       logger.trace("onError: t={}", t);
-      call.close(Status.fromThrowable(t).withDescription(t.getMessage()), new Metadata());
+      call.close(getStatus(t), new Metadata());
     }
 
     @Override
@@ -273,7 +273,7 @@ public final class ServerCallsRx {
           logger.trace("subscription.cancel");
 
           // todo cannot tell cancelled by excepting or initiated
-          call.close(Status.CANCELLED.withDescription("Subscripton cancelled"), new Metadata());
+          call.close(Status.CANCELLED.withDescription("Subscription cancelled"), new Metadata());
         }
       };
       subscriber.onSubscribe(requestSubscription);
@@ -458,5 +458,14 @@ public final class ServerCallsRx {
     return Flowable.error(Status.UNIMPLEMENTED
         .withDescription(String.format("Method %s is unimplemented", methodDescriptor.getFullMethodName()))
         .asRuntimeException());
+  }
+
+  private static Status getStatus(Throwable t) {
+    Status status = Status.fromThrowable(t);
+    if (status.getDescription() == null) {
+      return status.withDescription(t.getMessage());
+    } else {
+      return status;
+    }
   }
 }

@@ -78,6 +78,6 @@ public class ErrorPropagationTest extends TestBase {
 
     testObserver.awaitDone(testWaitSeconds, TimeUnit.SECONDS);
     testObserver.assertError(StatusRuntimeException.class);
-    testObserver.assertErrorMessage("CANCELLED: Subscripton cancelled");
+    testObserver.assertErrorMessage("CANCELLED: Subscription cancelled");
   }
 }

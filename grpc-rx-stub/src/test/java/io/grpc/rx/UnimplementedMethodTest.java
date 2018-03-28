@@ -30,7 +30,7 @@ public class UnimplementedMethodTest extends TestBase {
       if (!(t instanceof StatusRuntimeException)) return false;
       StatusRuntimeException e = (StatusRuntimeException)t;
       if (e.getStatus().getCode() != Status.UNIMPLEMENTED.getCode()) return false;
-      if (!e.getStatus().getDescription().equals("UNIMPLEMENTED: Method io.grpc.rx.Echo/unary is unimplemented")) return false;
+      if (!e.getStatus().getDescription().equals("Method io.grpc.rx.Echo/unary is unimplemented")) return false;
 
       return true;
     });
