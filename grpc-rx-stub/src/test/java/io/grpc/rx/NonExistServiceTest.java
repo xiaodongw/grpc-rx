@@ -26,7 +26,7 @@ public class NonExistServiceTest {
   private static EchoGrpcRx.EchoStub newClient() {
     channel = NettyChannelBuilder
         .forAddress("abc", 123)
-        .usePlaintext(true)
+        .usePlaintext()
         .build();
 
     return EchoGrpcRx.newStub(channel);

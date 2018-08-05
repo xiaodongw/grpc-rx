@@ -77,7 +77,7 @@ public abstract class FlowControlTest extends TestBase {
       return NettyChannelBuilder
           .forAddress("localhost", 1234)
           .flowControlWindow(flowWindow)
-          .usePlaintext(true)
+          .usePlaintext()
           .build();
     }
 

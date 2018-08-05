@@ -10,7 +10,7 @@ public interface IntegrationTestHelper {
   static ManagedChannel newChannel() {
     return NettyChannelBuilder
         .forAddress("localhost", 1234)
-        .usePlaintext(true)
+        .usePlaintext()
         .build();
   }
 

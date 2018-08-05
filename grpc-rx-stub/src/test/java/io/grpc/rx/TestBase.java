@@ -18,7 +18,7 @@ public abstract class TestBase {
   protected ManagedChannel newChannel() {
     return InProcessChannelBuilder
         .forName(uniqueServerName)
-        .usePlaintext(true)
+        .usePlaintext()
         .build();
   }
 
