@@ -6,7 +6,7 @@ plugins {
 ext {
   def exeSuffix = osdetector.os == 'windows' ? ".exe" : ""
   protocPluginBaseName = 'protoc-gen-grpc-rxjava'
-  rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
+  rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/$protocPluginBaseName$exeSuffix"
 
   grpcJavaVersion = '1.14.0'
   protobufVersion = '3.5.1'
@@ -22,7 +22,7 @@ subprojects {
   apply plugin: "jacoco"
 
   group = "io.atomos"
-  version = "0.1.0-SNAPSHOT" // CURRENT_GRPC_VERSION
+  version = "0.5.0"
 
   compileJava {
     sourceCompatibility = 1.7
@@ -102,7 +102,6 @@ subprojects {
     repository(url: stagingUrl, configureAuth)
     snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/', configureAuth)
   }
-  uploadArchives.onlyIf { !name.contains("thrift") }
 
   test {
     testLogging {

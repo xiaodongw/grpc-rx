@@ -1,157 +1,28 @@
-apply plugin: "cpp"
 apply plugin: "com.google.protobuf"
 
 description = 'The protoc plugin for gRPC rxjava'
 
 buildscript {
-    repositories {
-        mavenCentral()
-        mavenLocal()
-    }
-    dependencies {
-        classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"
-    }
+  repositories {
+    mavenCentral()
+    mavenLocal()
+  }
+  dependencies {
+    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.5"
+  }
 }
 
 def artifactStagingPath = "$buildDir/artifacts" as File
-// Adds space-delimited arguments from the environment variable env to the
-// argList.
-def addEnvArgs = { env, argList ->
-  def value = System.getenv(env)
-  if (value != null) {
-    value.split(' +').each() { it -> argList.add(it) }
-  }
-}
-
-// Adds corresponding "-l" option to the argList if libName is not found in
-// LDFLAGS. This is only used for Mac because when building for uploadArchives
-// artifacts, we add the ".a" files directly to LDFLAGS and without "-l" in
-// order to get statically linked, otherwise we add the libraries through "-l"
-// so that they can be searched for in default search paths.
-def addLibraryIfNotLinked = { libName, argList ->
-  def ldflags = System.env.LDFLAGS
-  if (ldflags == null || !ldflags.contains('lib' + libName + '.a')) {
-    argList.add('-l' + libName)
-  }
-}
-
 def String arch = rootProject.hasProperty('targetArch') ? rootProject.targetArch : osdetector.arch
-def boolean vcDisable = rootProject.hasProperty('vcDisable') ? rootProject.vcDisable : false
-
-model {
-  toolChains {
-    // If you have both VC and Gcc installed, VC will be selected, unless you
-    // set 'vcDisable=true'
-    if (!vcDisable) {
-      visualCpp(VisualCpp) {
-      }
-    }
-    gcc(Gcc) {
-      target("ppcle_64")
-    }
-    clang(Clang) {
-    }
-  }
-
-  platforms {
-    x86_32 {
-      architecture "x86"
-    }
-    x86_64 {
-      architecture "x86_64"
-    }
-    ppcle_64 {
-      architecture "ppcle_64"
-    }
-  }
-
-  components {
-    rxjava_plugin(NativeExecutableSpec) {
-      if (arch in ['x86_32', 'x86_64', 'ppcle_64']) {
-        // If arch is not within the defined platforms, we do not specify the
-        // targetPlatform so that Gradle will choose what is appropriate.
-        targetPlatform arch
-      }
-      baseName "$protocPluginBaseName"
-    }
-  }
-
-  binaries {
-    all {
-      if (toolChain in Gcc || toolChain in Clang) {
-        cppCompiler.define("GRPC_VERSION", version)
-        cppCompiler.args "--std=c++0x"
-        addEnvArgs("CXXFLAGS", cppCompiler.args)
-        addEnvArgs("CPPFLAGS", cppCompiler.args)
-        if (osdetector.os == "osx") {
-          cppCompiler.args "-mmacosx-version-min=10.7", "-stdlib=libc++"
-          addLibraryIfNotLinked('protoc', linker.args)
-          addLibraryIfNotLinked('protobuf', linker.args)
-        } else if (osdetector.os == "windows") {
-          linker.args "-static", "-lprotoc", "-lprotobuf", "-static-libgcc", "-static-libstdc++",
-                      "-s"
-        } else {
-          // Link protoc, protobuf, libgcc and libstdc++ statically.
-          // Link other (system) libraries dynamically.
-          // Clang under OSX doesn't support these options.
-          linker.args "-Wl,-Bstatic", "-lprotoc", "-lprotobuf", "-static-libgcc",
-                      "-static-libstdc++",
-                      "-Wl,-Bdynamic", "-lpthread", "-s"
-        }
-        addEnvArgs("LDFLAGS", linker.args)
-      } else if (toolChain in VisualCpp) {
-        cppCompiler.define("GRPC_VERSION", version)
-        cppCompiler.args "/EHsc", "/MT"
-        if (rootProject.hasProperty('vcProtobufInclude')) {
-          cppCompiler.args "/I${rootProject.vcProtobufInclude}"
-        }
-        linker.args "libprotobuf.lib", "libprotoc.lib"
-        if (rootProject.hasProperty('vcProtobufLibs')) {
-          linker.args "/LIBPATH:${rootProject.vcProtobufLibs}"
-        }
-      }
-    }
-  }
-}
-
-configurations {
-//  testLiteCompile
-//  testNanoCompile
-}
+def String os = rootProject.hasProperty('targetOs') ? rootProject.targetOs : osdetector.os
 
 dependencies {
   testCompile project(':grpc-rx-stub')
-//  testLiteCompile project(':grpc-protobuf-lite'),
-//                  project(':grpc-stub')
-//  testNanoCompile project(':grpc-protobuf-nano'),
-//                  project(':grpc-stub')
-}
-
-sourceSets {
-//  testLite {
-//    proto {
-//      setSrcDirs(['src/test/proto'])
-//    }
-//  }
-//  testNano {
-//    proto {
-//      setSrcDirs(['src/test/proto'])
-//    }
-//  }
 }
 
 compileTestJava {
   options.compilerArgs += ["-Xlint:-cast"]
 }
-
-//compileTestLiteJava {
-//  // Protobuf-generated Lite produces quite a few warnings.
-//  options.compilerArgs += ["-Xlint:-rawtypes", "-Xlint:-unchecked"]
-//}
-//
-//compileTestNanoJava {
-//  options.compilerArgs = compileTestJava.options.compilerArgs
-//}
 
 protobuf {
   generatedFilesBaseDir = "$projectDir/gen"
@@ -163,49 +34,21 @@ protobuf {
     }
   }
   plugins {
-//    javalite {
-//      if (project.hasProperty('protoc-gen-javalite')) {
-//        path = project['protoc-gen-javalite']
-//      } else {
-//        artifact = libraries.protoc_lite
-//      }
-//    }
     grpc {
       path = rxjavaPluginPath
     }
   }
   generateProtoTasks {
     all().each { task ->
-      task.dependsOn 'rxjava_pluginExecutable'
+      task.dependsOn 'buildPlugin'
       task.inputs.file rxjavaPluginPath
     }
     ofSourceSet('test')*.plugins {
-      grpc {}
+      grpc {
+        // write CodeGeneratorRequest to request.bin, so it can be loaded for debug purpose
+        // option 'write_input=true'
+      }
     }
-//    ofSourceSet('testLite')*.each { task ->
-//      task.builtins {
-//        remove java
-//      }
-//      task.plugins {
-//        javalite {}
-//        grpc {
-//          option 'lite'
-//        }
-//      }
-//    }
-//    ofSourceSet('testNano').each { task ->
-//      task.builtins {
-//        remove java
-//        javanano {
-//          option 'ignore_services=true'
-//        }
-//      }
-//      task.plugins {
-//        grpc {
-//          option 'nano'
-//        }
-//      }
-//    }
   }
 }
 
@@ -216,41 +59,38 @@ sourceSets {
       srcDir "${protobuf.generatedFilesBaseDir}/test/grpc"
     }
   }
-
-//  testLite {
-//    proto {
-//      setSrcDirs(['src/test/proto'])
-//    }
-//  }
-//  testNano {
-//    proto {
-//      setSrcDirs(['src/test/proto'])
-//    }
-//  }
 }
 
 compileTestJava {
   options.compilerArgs += ["-Xlint:-cast"]
 }
 
-//compileTestLiteJava {
-//  // Protobuf-generated Lite produces quite a few warnings.
-//  options.compilerArgs += ["-Xlint:-rawtypes", "-Xlint:-unchecked"]
-//}
-//
-//compileTestNanoJava {
-//  options.compilerArgs = compileTestJava.options.compilerArgs
-//}
+String goArch(String arch) {
+  switch(arch) {
+    case "x86_64": return "amd64"
+    case "x86_32": return "386"
+    default: throw new RuntimeException("Unsupported arch " + arch)
+  }
+}
 
-//checkstyleTestNano {
-//  source = fileTree(dir: "src/testNano", include: "**/*.java")
-//}
+String goOs(String os) {
+  switch(os) {
+    case "osx": return "darwin"
+    default: return os
+  }
+}
 
-println "*** Building codegen requires Protobuf version ${protobufVersion}"
-println "*** Please refer to https://github.com/grpc/grpc-java/blob/master/COMPILING.md#how-to-build-code-generation-plugin"
+task buildPlugin() {
+  doLast {
+    exec {
+      environment += [GOOS: goOs(os), GOARCH: goArch(arch)]
+      commandLine 'go', 'build', '-o', rxjavaPluginPath, 'src/main/go/main.go'
+    }
+  }
+}
 
 task buildArtifacts(type: Copy) {
-  dependsOn 'rxjava_pluginExecutable'
+  dependsOn 'buildPlugin'
   from("$buildDir/exe") {
     if (osdetector.os != 'windows') {
       rename 'protoc-gen-grpc-rxjava', '$0.exe'
@@ -262,34 +102,34 @@ task buildArtifacts(type: Copy) {
 archivesBaseName = "$protocPluginBaseName"
 
 artifacts {
-  archives("$artifactStagingPath/rxjava_plugin/${protocPluginBaseName}.exe" as File) {
-    classifier osdetector.os + "-" + arch
+  archives("$artifactStagingPath/${protocPluginBaseName}.exe" as File) {
+    classifier os + "-" + arch
     type "exe"
     extension "exe"
     builtBy buildArtifacts
   }
 }
 
-
 // Exe files are skipped by Maven by default. Override it.
 // Also skip jar files that is generated by the java plugin.
 [
   install.repositories.mavenInstaller,
   uploadArchives.repositories.mavenDeployer,
-]*.setFilter {artifact, file ->
-  ! (file.getName().endsWith('jar') || file.getName().endsWith('jar.asc'))
+]*.setFilter { artifact, file ->
+  !(file.getName().endsWith('jar') || file.getName().endsWith('jar.asc'))
 }
 
 [
   uploadArchives.repositories.mavenDeployer,
 ]*.beforeDeployment {
-  def ret = exec {
-    executable 'bash'
-    args 'check-artifact.sh', osdetector.os, arch
-  }
-  if (ret.exitValue != 0) {
-    throw new GradleException("check-artifact.sh exited with " + ret.exitValue)
-  }
+  // todo check the artifacts
+//  def ret = exec {
+//    executable 'bash'
+//    args 'check-artifact.sh', os, arch
+//  }
+//  if (ret.exitValue != 0) {
+//    throw new GradleException("check-artifact.sh exited with " + ret.exitValue)
+//  }
 }
 
 [
@@ -317,12 +157,8 @@ def configureTestTask(Task task, String dep, String extraPackage) {
   // File isn't found on Windows if last slash is forward-slash
   def slash = System.getProperty("file.separator")
   task.args "$projectDir/gen/test${dep}/grpc/io/grpc/testing/integration${extraPackage}${slash}TestServiceGrpcRx.java",
-       "$projectDir/src/test${dep}/golden/TestServiceGrpcRx.java.txt"
+    "$projectDir/src/test${dep}/golden/TestServiceGrpcRx.java.txt"
 }
 
 task testGolden(type: Exec)
-//task testLiteGolden(type: Exec)
-//task testNanoGolden(type: Exec)
 configureTestTask(testGolden, '', '')
-//configureTestTask(testLiteGolden, 'Lite', '')
-//configureTestTask(testNanoGolden, 'Nano', '/nano')
