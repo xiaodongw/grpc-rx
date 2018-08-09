@@ -14,6 +14,7 @@ buildscript {
 
 def artifactStagingPath = "$buildDir/artifacts" as File
 def String arch = rootProject.hasProperty('targetArch') ? rootProject.targetArch : osdetector.arch
+def String os = rootProject.hasProperty('targetOs') ? rootProject.targetOs : osdetector.os
 
 dependencies {
   testCompile project(':grpc-rx-stub')
@@ -64,14 +65,27 @@ compileTestJava {
   options.compilerArgs += ["-Xlint:-cast"]
 }
 
-task buildPlugin(type: Exec) {
-  commandLine 'go', 'build', '-o', rxjavaPluginPath, 'src/main/go/main.go'
+String goArch(String arch) {
+  switch(arch) {
+    case "x86_64": return "amd64";
+    case "x86_32": return "386"
+    default: throw new RuntimeException("Unsupported arch " + arch)
+  }
+}
+
+task buildPlugin() {
+  doLast {
+    exec {
+      environment += [GOOS: os, GOARCH: goArch(arch)]
+      commandLine 'go', 'build', '-o', rxjavaPluginPath, 'src/main/go/main.go'
+    }
+  }
 }
 
 task buildArtifacts(type: Copy) {
   dependsOn 'buildPlugin'
   from("$buildDir/exe") {
-    if (osdetector.os != 'windows') {
+    if (os != 'windows') {
       rename 'protoc-gen-grpc-rxjava', '$0.exe'
     }
   }
@@ -81,8 +95,8 @@ task buildArtifacts(type: Copy) {
 archivesBaseName = "$protocPluginBaseName"
 
 artifacts {
-  archives("$artifactStagingPath/rxjava_plugin/${protocPluginBaseName}.exe" as File) {
-    classifier osdetector.os + "-" + arch
+  archives("$artifactStagingPath/${protocPluginBaseName}.exe" as File) {
+    classifier os + "-" + arch
     type "exe"
     extension "exe"
     builtBy buildArtifacts
@@ -103,7 +117,7 @@ artifacts {
 ]*.beforeDeployment {
   def ret = exec {
     executable 'bash'
-    args 'check-artifact.sh', osdetector.os, arch
+    args 'check-artifact.sh', os, arch
   }
   if (ret.exitValue != 0) {
     throw new GradleException("check-artifact.sh exited with " + ret.exitValue)

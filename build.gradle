@@ -22,7 +22,7 @@ subprojects {
   apply plugin: "jacoco"
 
   group = "io.atomos"
-  version = "0.1.0-SNAPSHOT" // CURRENT_GRPC_VERSION
+  version = "0.5.0"
 
   compileJava {
     sourceCompatibility = 1.7

@@ -103,15 +103,11 @@ func (g *Generator) GenerateAllFiles() error {
 }
 
 func getJavaName(file *descriptor.FileDescriptorProto, msg *descriptor.DescriptorProto) string {
-	return getOuterClass(file) + "." + msg.GetName()
-}
-
-func getOuterClass(file *descriptor.FileDescriptorProto) string {
 	javaPackage := getJavaPackage(file)
 	if file.GetOptions().GetJavaMultipleFiles() {
-		return javaPackage
+		return javaPackage + "." + msg.GetName()
 	} else {
-		return javaPackage + "." + getOuterClassName(file)
+		return javaPackage + "." + getOuterClassName(file) + "." + msg.GetName()
 	}
 }
 

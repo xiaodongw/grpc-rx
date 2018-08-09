@@ -46,11 +46,10 @@ type Service struct {
 	ProtoPackage string
 	ProtoName    string
 
-	JavaPackage string
-	Name        string
-
+	JavaPackage    string
+	Name           string
+	OuterClassName string
 	Methods        []Method
-	JavaOuterClass string
 }
 
 type ServiceGenerator struct {
@@ -108,11 +107,11 @@ func (g *ServiceGenerator) generateTemplateParams() *Service {
 
 	service := Service{
 		JavaPackage:    getJavaPackage(g.file),
-		JavaOuterClass: getOuterClass(g.file),
 		Name:           g.service.GetName(),
 		ProtoFile:      g.file.GetName(),
 		ProtoPackage:   g.file.GetPackage(),
 		ProtoName:      g.file.GetPackage() + "." + g.service.GetName(),
+		OuterClassName: getOuterClassName(g.file),
 		Methods:        methods,
 	}
 

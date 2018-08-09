@@ -3,7 +3,7 @@ package templates
 const (
 	Service = `
 {{- with $s := .}}
-package {{.JavaPackage}};
+package {{$s.JavaPackage}};
 
 import static io.grpc.MethodDescriptor.generateFullMethodName;
 import io.grpc.rx.stub.ClientCallsRx;
@@ -17,11 +17,11 @@ import io.grpc.rx.stub.ServerCallsRx;
 @javax.annotation.Generated(
   value = "by gRPC proto compiler (version 0.5.0)",
   comments = "Source: {{.ProtoFile}}")
-public class {{.Name}}GrpcRx {
+public class {{$s.Name}}GrpcRx {
 
-  private {{.Name}}GrpcRx() {}
+  private {{$s.Name}}GrpcRx() {}
 
-  public static final String SERVICE_NAME = "{{.ProtoName}}";
+  public static final String SERVICE_NAME = "{{$s.ProtoName}}";
 
   // Static method descriptors that strictly reflect the proto.
   {{- range $i, $m := .Methods}}
@@ -201,7 +201,7 @@ public class {{.Name}}GrpcRx {
   private static final class {{$s.Name}}DescriptorSupplier implements io.grpc.protobuf.ProtoFileDescriptorSupplier {
     @java.lang.Override
     public com.google.protobuf.Descriptors.FileDescriptor getFileDescriptor() {
-      return {{$s.JavaOuterClass}}.getDescriptor();
+      return {{$s.JavaPackage}}.{{$s.OuterClassName}}.getDescriptor();
     }
   }
 
