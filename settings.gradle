@@ -1,10 +1,4 @@
 rootProject.name = "grpc-rx"
 
 include ':grpc-rx-stub'
-// include ':grpc-scala-example'
-
-if (settings.hasProperty('skipCodegen') && skipCodegen.toBoolean()) {
-  println '*** Skipping the build of codegen and compilation of proto files because skipCodegen=true'
-} else {
-  include ":grpc-rx-compiler"
-}
+include ":grpc-rx-compiler"

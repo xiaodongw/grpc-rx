@@ -5,7 +5,7 @@ plugins {
 
 ext {
   def exeSuffix = osdetector.os == 'windows' ? ".exe" : ""
-  protocPluginBaseName = 'protoc-gen-grpc-rxjava'
+  protocPluginBaseName = 'protoc-gen-grpc-rx'
   rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/$protocPluginBaseName$exeSuffix"
 
   grpcJavaVersion = '1.14.0'
@@ -101,6 +101,31 @@ subprojects {
     }
     repository(url: stagingUrl, configureAuth)
     snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/', configureAuth)
+
+    pom.project {
+      name "grpc-rx"
+      description 'GRPC stub & compiler for RxJava2'
+      url 'https://github.com/xiaodongw/grpc-rx'
+
+      scm {
+        url 'https://github.com/xiaodongw/grpc-rx.git'
+      }
+
+      licenses {
+        license {
+          name 'The Apache License, Version 2.0'
+          url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        }
+      }
+
+      developers {
+        developer {
+          id 'xiaodongw'
+          name 'Xiaodong Wang'
+          email 'xiaodongw79@gmail.com'
+        }
+      }
+    }
   }
 
   test {

@@ -93,7 +93,7 @@ task buildArtifacts(type: Copy) {
   dependsOn 'buildPlugin'
   from("$buildDir/exe") {
     if (osdetector.os != 'windows') {
-      rename 'protoc-gen-grpc-rxjava', '$0.exe'
+      rename 'protoc-gen-grpc-rx', '$0.exe'
     }
   }
   into artifactStagingPath

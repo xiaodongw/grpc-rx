@@ -7,7 +7,7 @@ This is a GRPC stub & compiler for RxJava2.
 
 ```groovy
 dependencies {
-  compile "io.atomos:grpc-rxjava-stub:0.5.0"
+  compile "io.atomos:grpc-rx-stub:0.5.0"
 }
 protobuf {
   protoc {
@@ -15,7 +15,7 @@ protobuf {
   }
   plugins {
     grpc {
-      artifact = "io.atomos:protoc-gen-grpc-rxjava:0.5.0"
+      artifact = "io.atomos:protoc-gen-grpc-rx:0.5.0"
     }
   }
   generateProtoTasks {
@@ -66,9 +66,9 @@ Publish to Maven Central
 
 * Publish to Sonatype
 ```
-gradle :grpc-rx-compiler:uploadArchives -PtargetOs=linux -PtargetArch=x86_64
-gradle :grpc-rx-compiler:uploadArchives -PtargetOs=windows -PtargetArch=x86_64
-gradle :grpc-rx-compiler:uploadArchives -PtargetOs=osx -PtargetArch=x86_64
+gradle clean :grpc-rx-compiler:uploadArchives -PtargetOs=linux -PtargetArch=x86_64
+gradle clean :grpc-rx-compiler:uploadArchives -PtargetOs=windows -PtargetArch=x86_64
+gradle clean :grpc-rx-compiler:uploadArchives -PtargetOs=osx -PtargetArch=x86_64
 gradle :grpc-rx-stub:uploadArchives
 ```
 
