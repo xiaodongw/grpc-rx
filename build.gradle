@@ -6,7 +6,7 @@ plugins {
 ext {
   def exeSuffix = osdetector.os == 'windows' ? ".exe" : ""
   protocPluginBaseName = 'protoc-gen-grpc-rxjava'
-  rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/rxjava_plugin/$protocPluginBaseName$exeSuffix"
+  rxjavaPluginPath = "$rootDir/grpc-rx-compiler/build/exe/$protocPluginBaseName$exeSuffix"
 
   grpcJavaVersion = '1.14.0'
   protobufVersion = '3.5.1'
