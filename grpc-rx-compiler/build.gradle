@@ -45,8 +45,8 @@ protobuf {
     }
     ofSourceSet('test')*.plugins {
       grpc {
-        option 'write_input=true'
-        //option 'write_output=true'
+        // write CodeGeneratorRequest to request.bin, so it can be loaded for debug purpose
+        // option 'write_input=true'
       }
     }
   }
@@ -67,16 +67,23 @@ compileTestJava {
 
 String goArch(String arch) {
   switch(arch) {
-    case "x86_64": return "amd64";
+    case "x86_64": return "amd64"
     case "x86_32": return "386"
     default: throw new RuntimeException("Unsupported arch " + arch)
+  }
+}
+
+String goOs(String os) {
+  switch(os) {
+    case "osx": return "darwin"
+    default: return os
   }
 }
 
 task buildPlugin() {
   doLast {
     exec {
-      environment += [GOOS: os, GOARCH: goArch(arch)]
+      environment += [GOOS: goOs(os), GOARCH: goArch(arch)]
       commandLine 'go', 'build', '-o', rxjavaPluginPath, 'src/main/go/main.go'
     }
   }
@@ -85,7 +92,7 @@ task buildPlugin() {
 task buildArtifacts(type: Copy) {
   dependsOn 'buildPlugin'
   from("$buildDir/exe") {
-    if (os != 'windows') {
+    if (osdetector.os != 'windows') {
       rename 'protoc-gen-grpc-rxjava', '$0.exe'
     }
   }
@@ -115,13 +122,14 @@ artifacts {
 [
   uploadArchives.repositories.mavenDeployer,
 ]*.beforeDeployment {
-  def ret = exec {
-    executable 'bash'
-    args 'check-artifact.sh', os, arch
-  }
-  if (ret.exitValue != 0) {
-    throw new GradleException("check-artifact.sh exited with " + ret.exitValue)
-  }
+  // todo check the artifacts
+//  def ret = exec {
+//    executable 'bash'
+//    args 'check-artifact.sh', os, arch
+//  }
+//  if (ret.exitValue != 0) {
+//    throw new GradleException("check-artifact.sh exited with " + ret.exitValue)
+//  }
 }
 
 [

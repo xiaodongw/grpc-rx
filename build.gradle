@@ -102,7 +102,6 @@ subprojects {
     repository(url: stagingUrl, configureAuth)
     snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/', configureAuth)
   }
-  uploadArchives.onlyIf { !name.contains("thrift") }
 
   test {
     testLogging {
