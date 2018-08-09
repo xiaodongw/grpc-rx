@@ -1,4 +1,4 @@
-# GRPC-RXJAVA
+# GRPC-RX
 This is a GRPC stub & compiler for RxJava2.
 
 ## Getting started
@@ -7,7 +7,7 @@ This is a GRPC stub & compiler for RxJava2.
 
 ```groovy
 dependencies {
-  compile "io.atomos:grpc-rx-stub:0.5.0"
+  compile "com.github.xiaodongw:grpc-rx-stub:0.5.0"
 }
 protobuf {
   protoc {
@@ -15,7 +15,7 @@ protobuf {
   }
   plugins {
     grpc {
-      artifact = "io.atomos:protoc-gen-grpc-rx:0.5.0"
+      artifact = "com.github.xiaodongw:protoc-gen-grpc-rx:0.5.0"
     }
   }
   generateProtoTasks {

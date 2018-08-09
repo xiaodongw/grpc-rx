@@ -21,7 +21,7 @@ subprojects {
   apply plugin: "signing"
   apply plugin: "jacoco"
 
-  group = "io.atomos"
+  group = "com.github.xiaodongw"
   version = "0.5.0"
 
   compileJava {
