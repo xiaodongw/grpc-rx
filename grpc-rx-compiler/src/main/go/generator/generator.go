@@ -74,7 +74,7 @@ func (g *Generator) GenerateAllFiles() error {
 			messages[file.GetPackage()+"."+msg.GetName()] = Message{
 				Package:  file.GetPackage(),
 				Name:     msg.GetName(),
-				JavaName: g.generateJavaName(file, msg),
+				JavaName: getJavaName(file, msg),
 			}
 		}
 	}
@@ -102,19 +102,34 @@ func (g *Generator) GenerateAllFiles() error {
 	return nil
 }
 
-func (g *Generator) generateJavaName(file *descriptor.FileDescriptorProto, msg *descriptor.DescriptorProto) string {
+func getJavaName(file *descriptor.FileDescriptorProto, msg *descriptor.DescriptorProto) string {
+	return getOuterClass(file) + "." + msg.GetName()
+}
+
+func getOuterClass(file *descriptor.FileDescriptorProto) string {
+	javaPackage := getJavaPackage(file)
 	if file.GetOptions().GetJavaMultipleFiles() {
-		return file.GetOptions().GetJavaPackage() + "." + msg.GetName()
+		return javaPackage
 	} else {
-		return file.GetOptions().GetJavaPackage() + "." + g.getOuterClass(file) + "." + msg.GetName()
+		return javaPackage + "." + getOuterClassName(file)
 	}
 }
-func (g *Generator) getOuterClass(file *descriptor.FileDescriptorProto) string {
+
+func getOuterClassName(file *descriptor.FileDescriptorProto) string {
 	outer := file.GetOptions().GetJavaOuterClassname()
 	if len(outer) != 0 {
 		return outer
 	} else {
 		name := strings.Replace(file.GetName(), ".proto", "", -1)
 		return strings.Title(name)
+	}
+}
+
+func getJavaPackage(file *descriptor.FileDescriptorProto) string {
+	pkg := file.GetOptions().GetJavaPackage()
+	if len(pkg) != 0 {
+		return pkg
+	} else {
+		return file.GetPackage()
 	}
 }
