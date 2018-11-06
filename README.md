@@ -1,5 +1,6 @@
 # GRPC-RX
 This is a GRPC stub & compiler for RxJava2.
+Check [GRPC-KT](https://github.com/xiaodongw/grpc-kt) for Kotlin Coroutine binding.
 
 ## Getting started
   
